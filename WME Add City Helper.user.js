@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WME Add City Helper
 // @namespace    madnut.ua@gmail.com
-// @version      0.1
+// @version      0.1.1
 // @description  Helps to add cities using WME Requests spreadsheet
 // @author       madnut
 // @include      https://www.waze.com/editor/*
@@ -12,6 +12,9 @@
 // @connect      script.googleusercontent.com
 // @connect      localhost
 // @grant        GM_xmlhttpRequest
+// @updateURL    https://github.com/madnut-ua/wme_addcityhelper/raw/master/WME%20Add%20City%20Helper.user.js
+// @downloadURL  https://github.com/madnut-ua/wme_addcityhelper/raw/master/WME%20Add%20City%20Helper.user.js
+// @supportURL   https://github.com/madnut-ua/wme_addcityhelper/issues
 // ==/UserScript==
 
 (function() {
@@ -110,7 +113,7 @@
                     newtab.innerHTML = '<a href="#' + panelID + '" id="wme-ach" data-toggle="tab">ACH</a>';
                     navTabs.appendChild(newtab);
 
-                    var html =
+                    var html = 
                         '<h4>WME Add City Helper <sup>' + GM_info.script.version + '</sup></h4>'+
                         '</br>' +
                         // block 1
@@ -530,7 +533,7 @@
                     if (res.status === 200) {
                         var text = JSON.parse(res.responseText);
                         if (text.result == 'success') {
-                            //TODO ?
+                            setRequestStatus(curRequest.status + ", emailed");
                             alert(text.result);
                         }
                         else {
@@ -721,7 +724,7 @@
             textColor = 'white';
             bgColor = 'green';
         }
-        else if (parseInt(count) > 0 && parseInt(count) <= 20) {
+        else if (parseInt(count) > 0 && parseInt(count) <= 50) {
             bgColor = 'yellow';
             tooltipTextColor = 'black';
         }
