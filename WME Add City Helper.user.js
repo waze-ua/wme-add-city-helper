@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WME Add City Helper
 // @namespace    madnut.ua@gmail.com
-// @version      0.1.1
+// @version      0.2.0
 // @description  Helps to add cities using WME Requests spreadsheet
 // @author       madnut
 // @include      https://www.waze.com/editor/*
@@ -21,17 +21,38 @@
     'use strict';
 
     var requestsTimeout = 15000; // in ms
-    // prod
-    var apiUrl = 'https://script.google.com/macros/s/AKfycby2OUnHmGkbTNeJDBcXu4zZ6eyNngh6XHpkcU_tsoVSmHn-NzY/exec';
-    // dev
-    //var apiUrl = 'https://script.google.com/macros/s/AKfycbxgluud2CmzFqpRm4Bp379UdEjuKhelt-0nT1feY_U/dev';
+    var config = {
+        BO: {
+            "country": "Беларусь",
+            "code": "37",
+            // prod
+            "apiUrl": "https://script.google.com/macros/s/AKfycbxw0VxylM8Y8mPEMK5U3aIPcwR2ev91ln7dvQTr2I7t-bFmFm6I/exec"
+            // dev
+            //"apiUrl": "https://script.google.com/macros/s/AKfycbz8_xLefn_06nLRsfwnupviEEStCXfttg777KryBMnD/dev"
+            // test
+            //"apiUrl": "https://script.google.com/macros/s/AKfycbyGURQ-Kq_gTJFaF943jO5Tpy9KDrrkkgL0l_SYB-U/dev"
+        },
+        UP: {
+            "country": "Україна",
+            "code": "232",
+            // prod
+            "apiUrl": "https://script.google.com/macros/s/AKfycby2OUnHmGkbTNeJDBcXu4zZ6eyNngh6XHpkcU_tsoVSmHn-NzY/exec"
+            // dev
+            //"apiUrl": "https://script.google.com/macros/s/AKfycbxgluud2CmzFqpRm4Bp379UdEjuKhelt-0nT1feY_U/dev"
+            // test
+            //"apiUrl": ""
+        },
+    };
 
     var curRequest = {
         "author": "",
         "permalink": "",
-        "requestedCity": "",
+        "requestedcity": "",
+        "countrycode": "",
+        "statecode": "",
         "row": "",
         "note": "",
+        "addedcity": "",
         "status": ""
     };
     var isRequestActive = false;
@@ -48,10 +69,12 @@
         if (typeof Waze === "undefined" ||
             typeof Waze.map === "undefined" ||
             typeof Waze.selectionManager === "undefined" ||
+            typeof Waze.model.countries.top.abbr === "undefined" ||
             typeof I18n === "undefined") {
             setTimeout(ACHelper_bootstrap, 1000);
             return;
         }
+
         ACHelper_init();
 
         Waze.selectionManager.events.register("selectionchanged", null, ACHelper_prepareUI);
@@ -87,10 +110,17 @@
     }
 
     function ACHelper_prepareUI() {
-        if (Waze.selectionManager.selectedItems.length <= 0)
+        var cfg =  config[Waze.model.countries.top.abbr];
+        // country is not supported
+        if (!cfg) {
             return;
+        }
+        var sItems = Waze.selectionManager.selectedItems;
+        if (sItems.length <= 0) {
+            return;
+        }
 
-        var selectedItem = Waze.selectionManager.selectedItems[0];
+        var selectedItem = sItems[0];
 
         if (typeof selectedItem.model === "undefined" || selectedItem.model.type !== "segment")
             return;
@@ -110,7 +140,7 @@
 
                 if (typeof tabContent !== "undefined") {
                     newtab = document.createElement('li');
-                    newtab.innerHTML = '<a href="#' + panelID + '" id="wme-ach" data-toggle="tab">ACH</a>';
+                    newtab.innerHTML = '<a href="#' + panelID + '" id="achTab" data-toggle="tab">ACH</a>';
                     navTabs.appendChild(newtab);
 
                     var html = 
@@ -118,7 +148,7 @@
                         '</br>' +
                         // block 1
                         '<fieldset id="achActiveRequestPanel" style="border: 1px solid silver; padding: 8px; border-radius: 4px;">' +
-                        '<legend style="margin-bottom:0px; border-bottom-style:none;width:auto;"><h5 style="font-weight: bold;">Текущий запрос НП</h5></legend>' +
+                        '<legend style="margin-bottom:0px; border-bottom-style:none;width:auto;"><h5 style="font-weight: bold;">Текущий запрос НП (' + cfg.country + ')</h5></legend>' +
                         // author
                         '<div class="form-group">' +
                         '<label class="control-label">Автор</label>' +
@@ -182,54 +212,59 @@
                         '</div>' +
                         '</div>' +
                         // end 1
-                        '</fieldset>' +
-                        // block 2
-                        '</br>' +
-                        '<fieldset id="achMinRegionPanel" style="border: 1px solid silver; padding: 8px; border-radius: 4px;">' +
-                        '<legend style="margin-bottom:0px; border-bottom-style:none;width:auto;"><h5 style="font-weight: bold;">МинРегион</h5></legend>' +
-                        // check name in MinRegion
-                        '<div class="form-group">' +
-                        '<button id="achCheckInMinRegion" class="action-button btn btn-lightning btn-positive" type="button" title="Проверить имя в МинРегионе">' +
-                        '<i class="fa fa-map-o"></i>&nbsp;Проверить' +
-                        '</button>' +
-                        '</div>' +
-                        // foundName
-                        '<div class="form-group">' +
-                        '<label class="control-label">Согласно МинРегиону здесь находится</label>' +
-                        '<div class="controls input-group">' +
-                        '<input class="form-control" autocomplete="off" id="achFoundCity" name="" title="Найденный НП" type="text" value="N/A" readonly="readonly" />' +
-                        '<span class="input-group-btn">' +
-                        '<button id="achApplyFoundCity" class="btn btn-primary" type="button" data-original-title="" title="Использовать это имя" style="padding: 0 8px; border-bottom-left-radius: 0; border-top-left-radius: 0; font-size: 16px">' +
-                        '<i class="fa fa-paw"></i>' +
-                        '</button>' +
-                        '</span>' +
-                        '</div>' +
-                        '</div>' +
-                        // suggestedName
-                        '<div class="form-group">' +
-                        '<label class="control-label">Имя с учетом правил именования</label>' +
-                        '<div class="controls input-group">' +
-                        '<input class="form-control" autocomplete="off" id="achSuggestedName" name="" title="Предложенное имя для НП" type="text" value="N/A" readonly="readonly" />' +
-                        '<span class="input-group-btn">' +
-                        '<button id="achApplySuggestedCity" class="btn btn-primary" type="button" data-original-title="" title="Использовать это имя" style="padding: 0 8px; border-bottom-left-radius: 0; border-top-left-radius: 0; font-size: 16px">' +
-                        '<i class="fa fa-paw"></i>' +
-                        '</button>' +
-                        '</span>' +
-                        '</div>' +
-                        '</div>' +
-                        // result
-                        '<div class="form-group">' +
-                        '<label class="control-label">Ответ анализатора</label>' +
-                        '<div class="controls">' +
-                        '<label style="font-weight: bold;">Статус:&nbsp;</label>' +
-                        '<span id="achMRResponseStatus" style="font-weight: bold;"></span></br>' +
-                        '<label style="font-weight: bold;">Комментарии:</label></br>' +
-                        '<span id="achMRResponseComments"></span>' +
-                        '</div>' +
-                        '</div>' +
-                        // end 2
                         '</fieldset>';
 
+                    // Ukraine
+                    if (cfg.code == "232") {
+
+                        html += 
+                            // block 2
+                            '</br>' +
+                            '<fieldset id="achMinRegionPanel" style="border: 1px solid silver; padding: 8px; border-radius: 4px;">' +
+                            '<legend style="margin-bottom:0px; border-bottom-style:none;width:auto;"><h5 style="font-weight: bold;">МинРегион</h5></legend>' +
+                            // check name in MinRegion
+                            '<div class="form-group">' +
+                            '<button id="achCheckInMinRegion" class="action-button btn btn-lightning btn-positive" type="button" title="Проверить имя в МинРегионе">' +
+                            '<i class="fa fa-map-o"></i>&nbsp;Проверить' +
+                            '</button>' +
+                            '</div>' +
+                            // foundName
+                            '<div class="form-group">' +
+                            '<label class="control-label">Согласно МинРегиону здесь находится</label>' +
+                            '<div class="controls input-group">' +
+                            '<input class="form-control" autocomplete="off" id="achFoundCity" name="" title="Найденный НП" type="text" value="N/A" readonly="readonly" />' +
+                            '<span class="input-group-btn">' +
+                            '<button id="achApplyFoundCity" class="btn btn-primary" type="button" data-original-title="" title="Использовать это имя" style="padding: 0 8px; border-bottom-left-radius: 0; border-top-left-radius: 0; font-size: 16px">' +
+                            '<i class="fa fa-paw"></i>' +
+                            '</button>' +
+                            '</span>' +
+                            '</div>' +
+                            '</div>' +
+                            // suggestedName
+                            '<div class="form-group">' +
+                            '<label class="control-label">Имя с учетом правил именования</label>' +
+                            '<div class="controls input-group">' +
+                            '<input class="form-control" autocomplete="off" id="achSuggestedName" name="" title="Предложенное имя для НП" type="text" value="N/A" readonly="readonly" />' +
+                            '<span class="input-group-btn">' +
+                            '<button id="achApplySuggestedCity" class="btn btn-primary" type="button" data-original-title="" title="Использовать это имя" style="padding: 0 8px; border-bottom-left-radius: 0; border-top-left-radius: 0; font-size: 16px">' +
+                            '<i class="fa fa-paw"></i>' +
+                            '</button>' +
+                            '</span>' +
+                            '</div>' +
+                            '</div>' +
+                            // result
+                            '<div class="form-group">' +
+                            '<label class="control-label">Ответ анализатора</label>' +
+                            '<div class="controls">' +
+                            '<label style="font-weight: bold;">Статус:&nbsp;</label>' +
+                            '<span id="achMRResponseStatus" style="font-weight: bold;"></span></br>' +
+                            '<label style="font-weight: bold;">Комментарии:</label></br>' +
+                            '<span id="achMRResponseComments"></span>' +
+                            '</div>' +
+                            '</div>' +
+                            // end 2
+                            '</fieldset>';
+                    }
                     panelElement.innerHTML = html;
                     panelElement.className = "tab-pane";
                     tabContent.appendChild(panelElement);
@@ -246,34 +281,39 @@
                 document.getElementById('achJumpToRequest').onclick = onJumpToClick;
 
                 document.getElementById('achLockRequest').onclick = onLockRequest;
-                document.getElementById('achCheckInMinRegion').onclick = onCheckMinRegion;
                 document.getElementById('achApproveRequest').onclick = onApproveRequest;
                 document.getElementById('achDeclineRequest').onclick = onDeclineRequest;
                 document.getElementById('achSendEmail').onclick = onSendEmail;
 
-                document.getElementById('achApplyFoundCity').onclick = function() {
-                    var cityName = document.getElementById('achFoundCity').value;
-                    if (cityName !== '' && cityName !== 'N/A') {
-                        ChangeCity(cityName);
-                    }
-                    return false;
-                };
-                document.getElementById('achApplySuggestedCity').onclick = function() {
-                    var cityName = document.getElementById('achSuggestedName').value;
-                    if (cityName !== '' && cityName !== 'N/A') {
-                        ChangeCity(cityName);
-                    }
-                    return false;
-                };
+                //Ukraine
+                if (cfg.code == "232") {
+                    document.getElementById('achCheckInMinRegion').onclick = onCheckMinRegion;
+                    document.getElementById('achApplyFoundCity').onclick = function() {
+                        var cityName = document.getElementById('achFoundCity').value;
+                        if (cityName !== '' && cityName !== 'N/A') {
+                            ChangeCity(cityName);
+                        }
+                        return false;
+                    };
+                    document.getElementById('achApplySuggestedCity').onclick = function() {
+                        var cityName = document.getElementById('achSuggestedName').value;
+                        if (cityName !== '' && cityName !== 'N/A') {
+                            ChangeCity(cityName);
+                        }
+                        return false;
+                    };
+                }
             }
         }
 
         if (document.getElementById(panelID) !== null) {
-            if (curRequest.requestedCity) {
+            if (curRequest.requestedcity) {
                 document.getElementById('achAuthor').value = curRequest.author;
-                document.getElementById('achCity').value = curRequest.requestedCity;
+                document.getElementById('achCity').value = curRequest.requestedcity;
                 //document.getElementById('achPermalink').value = curRequest.permalink;
                 document.getElementById('achJumpToRequest').disabled = false;
+
+                document.getElementById("achTab").click();
             }
             else {
                 document.getElementById('achAuthor').value = "N/A";
@@ -284,8 +324,11 @@
 
             updateRequestStatus();
 
-            document.getElementById('achApplyFoundCity').disabled = true;
-            document.getElementById('achApplySuggestedCity').disabled = true;
+            //Ukraine
+            if (cfg.code == "232") {
+                document.getElementById('achApplyFoundCity').disabled = true;
+                document.getElementById('achApplySuggestedCity').disabled = true;
+            }
         }
     }
 
@@ -352,9 +395,11 @@
     function onLockRequest() {
         var user = Waze.loginManager.user.userName;
         var buttonID = 'achLockRequest';
-        if (curRequest.row) {
+        var cfg = config[Waze.model.countries.top.abbr];
+
+        if (curRequest.row && cfg) {
             GM_xmlhttpRequest({
-                url: apiUrl + '?func=processRequest&row=' + curRequest.row + '&user=' + user + '&action=lock',
+                url: cfg.apiUrl + '?func=processRequest&row=' + curRequest.row + '&user=' + user + '&action=lock',
                 method: 'GET',
                 timeout: requestsTimeout,
                 onload: function(res) {
@@ -432,20 +477,21 @@
     function onApproveRequest() {
         var user = Waze.loginManager.user.userName;
         var buttonID = 'achApproveRequest';
-        if (curRequest.row) {
+        var cfg = config[Waze.model.countries.top.abbr];
+
+        if (curRequest.row && cfg) {
             var selectedItem = Waze.selectionManager.selectedItems[0].model;
-            var currentCity = '';
             if (selectedItem.type === "segment") {
                 var street = Waze.model.streets.objects[selectedItem.attributes.primaryStreetID];
                 var city = Waze.model.cities.objects[street.cityID];
-                currentCity = city.attributes.name;
+                curRequest.addedcity = city.attributes.name;
             }
 
-            curRequest.note = prompt('Присвоенное имя НП', currentCity);
+            curRequest.note = prompt('Одобрить запрос? Добавьте комментарий, если необходимо.', '');
 
-            if (curRequest.note) {
+            if (curRequest.note !== null) {
                 GM_xmlhttpRequest({
-                    url: apiUrl + '?func=processRequest&row=' + curRequest.row + '&user=' + user + '&action=approve&note=' + curRequest.note,
+                    url: cfg.apiUrl + '?func=processRequest&row=' + curRequest.row + '&user=' + user + '&addedcity=' + curRequest.addedcity + '&action=approve&note=' + curRequest.note,
                     method: 'GET',
                     timeout: requestsTimeout,
                     onload: function(res) {
@@ -482,12 +528,21 @@
     function onDeclineRequest() {
         var user = Waze.loginManager.user.userName;
         var buttonID = 'achDeclineRequest';
-        if (curRequest.row) {
+        var cfg = config[Waze.model.countries.top.abbr];
+
+        if (curRequest.row && cfg) {
+            var selectedItem = Waze.selectionManager.selectedItems[0].model;
+            if (selectedItem.type === "segment") {
+                var street = Waze.model.streets.objects[selectedItem.attributes.primaryStreetID];
+                var city = Waze.model.cities.objects[street.cityID];
+                curRequest.addedcity = city.attributes.name;
+            }
+
             curRequest.note = prompt('Причина отказа?', 'Такой НП уже существует.');
 
-            if (curRequest.note) {
+            if (curRequest.note !== null) {
                 GM_xmlhttpRequest({
-                    url: apiUrl + '?func=processRequest&row=' + curRequest.row + '&user=' + user + '&action=decline&note=' + curRequest.note,
+                    url: cfg.apiUrl + '?func=processRequest&row=' + curRequest.row + '&user=' + user + '&addedcity=' + curRequest.addedcity + '&action=decline&note=' + curRequest.note,
                     method: 'GET',
                     timeout: requestsTimeout,
                     onload: function(res) {
@@ -523,9 +578,11 @@
 
     function onSendEmail() {
         var buttonID = 'achSendEmail';
-        if (curRequest.row) {
+        var cfg = config[Waze.model.countries.top.abbr];
+
+        if (curRequest.row && cfg) {
             GM_xmlhttpRequest({
-                url: apiUrl + '?func=sendEmail&row=' + curRequest.row,
+                url: cfg.apiUrl + '?func=sendEmail&row=' + curRequest.row,
                 method: 'GET',
                 timeout: requestsTimeout,
                 onload: function(res) {
@@ -566,7 +623,7 @@
             document.getElementById('achFoundCity').value = rs.foundcity;
             document.getElementById('achSuggestedName').value = rs.suggestedcity;
 
-            document.getElementById('achMRResponseStatus').style.color = (rs.status == 'OK' ? 'green' : (rs.status.match(/error/) ? 'red' : 'yellow'));
+            document.getElementById('achMRResponseStatus').style.color = (rs.status == 'OK' ? 'green' : (rs.status.match(/error/) ? 'red' : 'darkorange'));
             document.getElementById('achMRResponseStatus').innerHTML = rs.status.replace(',', '</br>');
             document.getElementById('achMRResponseComments').innerHTML = rs.comments.replace(',', '</br>');
         }
@@ -582,20 +639,24 @@
     }
 
     function processGetResult(rq) {
-        if (rq.city) {
+        if (rq && rq.city) {
             curRequest.author = rq.requestor;
-            curRequest.requestedCity = rq.city;
+            curRequest.requestedcity = rq.city;
             curRequest.permalink = rq.permalink;
             curRequest.row = rq.row;
+            curRequest.countrycode = rq.countrycode;
+            curRequest.statecode = rq.statecode;
 
             jumpToLink(rq.permalink);
         }
         else {
             curRequest.author = '';
-            curRequest.requestedCity = '';
+            curRequest.requestedcity = '';
             curRequest.permalink = '';
             curRequest.row = '';
             curRequest.status = '';
+            curRequest.countrycode = '';
+            curRequest.statecode = '';
         }
     }
 
@@ -673,46 +734,51 @@
     }
 
     function getCityRequest() {
-        var user = Waze.loginManager.user.userName;
-        isRequestActive = true;
-        GM_xmlhttpRequest({
-            url: apiUrl + '?func=getCityRequest&user=' + user,
-            method: 'GET',
-            timeout: requestsTimeout,
-            onload: function(res) {
-                var count = "error";
-                isRequestActive = false;
-                updateInProgressIndicator();
-                if (res.status === 200) {
-                    var text = JSON.parse(res.responseText);
-                    count = text.count;
-                    if (text.result == 'success') {
-                        setRequestStatus(text.status);
-                        processGetResult(text);
+        var cfg = config[Waze.model.countries.top.abbr];
+        if (cfg) {
+            var user = Waze.loginManager.user.userName;
+            isRequestActive = true;
+            GM_xmlhttpRequest({
+                url: cfg.apiUrl + '?func=getCityRequest&user=' + user,
+                method: 'GET',
+                timeout: requestsTimeout,
+                onload: function(res) {
+                    var count = "error";
+                    isRequestActive = false;
+                    updateInProgressIndicator();
+                    if (res.status === 200) {
+                        var text = JSON.parse(res.responseText);
+                        count = text.count;
+                        if (text.result == 'success') {
+                            setRequestStatus(text.status);
+                            processGetResult(text);
+                        }
+                        else {
+                            alert(text.result);
+                            // set request to empty
+                            processGetResult();
+                        }
                     }
                     else {
-                        alert(text.result);
+                        alert("Error loading city. Response: " + res.responseText);
                     }
+                    updateRequestsCount(count);
+                },
+                onreadystatechange: function(res) {
+                    updateInProgressIndicator();
+                },
+                ontimeout: function(res) {
+                    alert("Sorry, request timeout!");
+                    isRequestActive = false;
+                    updateInProgressIndicator();
+                },
+                onerror: function(res) {
+                    alert("Sorry, request error!");
+                    isRequestActive = false;
+                    updateInProgressIndicator();
                 }
-                else {
-                    alert("Error loading city. Response: " + res.responseText);
-                }
-                updateRequestsCount(count);
-            },
-            onreadystatechange: function(res) {
-                updateInProgressIndicator();
-            },
-            ontimeout: function(res) {
-                alert("Sorry, request timeout!");
-                isRequestActive = false;
-                updateInProgressIndicator();
-            },
-            onerror: function(res) {
-                alert("Sorry, request error!");
-                isRequestActive = false;
-                updateInProgressIndicator();
-            }
-        });
+            });
+        }
     }
 
     function updateRequestsCount(count) {
@@ -738,34 +804,37 @@
     }
 
     function getRequestsCount() {
-        GM_xmlhttpRequest({
-            url: apiUrl + '?func=getRequestsCount',
-            method: 'GET',
-            timeout: requestsTimeout,
-            onload: function(res) {
-                var count = "error";
-                if (res.status === 200) {
-                    var text = JSON.parse(res.responseText);
-                    count = text.count;
-                    //alert(text.count);
-                    /*
+        var cfg = config[Waze.model.countries.top.abbr];
+        if (cfg) {
+            GM_xmlhttpRequest({
+                url: cfg.apiUrl + '?func=getRequestsCount',
+                method: 'GET',
+                timeout: requestsTimeout,
+                onload: function(res) {
+                    var count = "error";
+                    if (res.status === 200) {
+                        var text = JSON.parse(res.responseText);
+                        count = text.count;
+                        //alert(text.count);
+                        /*
                     if (text.result == "success") {
                         count = text.count;
                     }
                     */
+                    }
+                    else {
+                        alert("Error loading requests count. Response: " + res.responseText);
+                    }
+                    updateRequestsCount(count);
+                },
+                ontimeout: function(res) {
+                    alert("Sorry, request timeout!");
+                },
+                onerror: function(res) {
+                    alert("Sorry, request error!");
                 }
-                else {
-                    alert("Error loading requests count. Response: " + res.responseText);
-                }
-                updateRequestsCount(count);
-            },
-            ontimeout: function(res) {
-                alert("Sorry, request timeout!");
-            },
-            onerror: function(res) {
-                alert("Sorry, request error!");
-            }
-        });
+            });
+        }
     }
 
     function getElementsByClassName(classname, node) {
@@ -830,16 +899,16 @@
                             chkStreet.click();
                         }
                     }
-                    // fix, when states will be available for Ukraine
+
                     var state = $(getEditFormControlName('state'));
-                    if (state && state.val() != '1') // temp in Ukraine
+                    if (state && curRequest.statecode && state.val() && (state.val() != curRequest.statecode))
                     {
-                        state.val('1').change();
+                        state.val(curRequest.statecode).change();
                     }
                     var country = $(getEditFormControlName('country'));
-                    if (country.val() != '232') // Ukraine
+                    if (curRequest.countrycode && country.val() != curRequest.countrycode)
                     {
-                        country.val('232').change();
+                        country.val(curRequest.countrycode).change();
                     }
                 }
             }
