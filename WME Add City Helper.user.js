@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WME Add City Helper
 // @namespace    madnut.ua@gmail.com
-// @version      0.2.0
+// @version      0.2.1
 // @description  Helps to add cities using WME Requests spreadsheet
 // @author       madnut
 // @include      https://www.waze.com/editor/*
@@ -21,6 +21,7 @@
     'use strict';
 
     var requestsTimeout = 15000; // in ms
+    var minZoomLevel = 4;
     var config = {
         BO: {
             "country": "Беларусь",
@@ -29,8 +30,6 @@
             "apiUrl": "https://script.google.com/macros/s/AKfycbxw0VxylM8Y8mPEMK5U3aIPcwR2ev91ln7dvQTr2I7t-bFmFm6I/exec"
             // dev
             //"apiUrl": "https://script.google.com/macros/s/AKfycbz8_xLefn_06nLRsfwnupviEEStCXfttg777KryBMnD/dev"
-            // test
-            //"apiUrl": "https://script.google.com/macros/s/AKfycbyGURQ-Kq_gTJFaF943jO5Tpy9KDrrkkgL0l_SYB-U/dev"
         },
         UP: {
             "country": "Україна",
@@ -39,8 +38,6 @@
             "apiUrl": "https://script.google.com/macros/s/AKfycby2OUnHmGkbTNeJDBcXu4zZ6eyNngh6XHpkcU_tsoVSmHn-NzY/exec"
             // dev
             //"apiUrl": "https://script.google.com/macros/s/AKfycbxgluud2CmzFqpRm4Bp379UdEjuKhelt-0nT1feY_U/dev"
-            // test
-            //"apiUrl": ""
         },
     };
 
@@ -404,7 +401,7 @@
                 timeout: requestsTimeout,
                 onload: function(res) {
                     setButtonClass(buttonID, 'fa fa-lock');
-                    if (res.status === 200) {
+                    if (res.status === 200 && res.responseHeaders.match(/content-type: application\/json/)) {
                         var text = JSON.parse(res.responseText);
                         if (text.result == 'success') {
                             setRequestStatus('locked');
@@ -447,7 +444,7 @@
                 timeout: requestsTimeout,
                 onload: function(res) {
                     setButtonClass(buttonID, 'fa fa-map-o');
-                    if (res.status === 200) {
+                    if (res.status === 200 && res.responseHeaders.match(/content-type: application\/json/)) {
                         var text = JSON.parse(res.responseText);
                         //alert(res.responseText);
                         updateMinRegionInfo(text);
@@ -496,7 +493,7 @@
                     timeout: requestsTimeout,
                     onload: function(res) {
                         setButtonClass(buttonID, 'fa fa-thumbs-up');
-                        if (res.status === 200) {
+                        if (res.status === 200 && res.responseHeaders.match(/content-type: application\/json/)) {
                             var text = JSON.parse(res.responseText);
                             if (text.result == 'success') {
                                 setRequestStatus('approved');
@@ -547,7 +544,7 @@
                     timeout: requestsTimeout,
                     onload: function(res) {
                         setButtonClass(buttonID, 'fa fa-thumbs-down');
-                        if (res.status === 200) {
+                        if (res.status === 200 && res.responseHeaders.match(/content-type: application\/json/)) {
                             var text = JSON.parse(res.responseText);
                             if (text.result == 'success') {
                                 setRequestStatus('declined');
@@ -587,11 +584,13 @@
                 timeout: requestsTimeout,
                 onload: function(res) {
                     setButtonClass(buttonID, 'fa fa-envelope-o');
-                    if (res.status === 200) {
+                    if (res.status === 200 && res.responseHeaders.match(/content-type: application\/json/)) {
                         var text = JSON.parse(res.responseText);
                         if (text.result == 'success') {
                             setRequestStatus(curRequest.status + ", emailed");
-                            alert(text.result);
+                            alert("Письмо успешно отправлено!");
+                            // update counter
+                            getRequestsCount();
                         }
                         else {
                             alert(text.result);
@@ -675,9 +674,14 @@
                 var segArray = lnk.segments.split(",");
                 var objects = [];
                 for (var i = 0; i < segArray.length; i++) {
-                    objects.push(Waze.model.segments.objects[segArray[i]]);
+                    var sObj = Waze.model.segments.objects[segArray[i]];
+                    if (sObj) {
+                        objects.push(sObj);
+                    }
                 }
-                Waze.selectionManager.select(objects);
+                if (objects.length > 0) {
+                    Waze.selectionManager.select(objects);
+                }
             }
         }
 
@@ -690,11 +694,7 @@
 
         Waze.selectionManager.unselectAll();
         var xy = OpenLayers.Layer.SphericalMercator.forwardMercator(parseFloat(lnk.lon), parseFloat(lnk.lat));
-        if (lnk.zoom) {
-            Waze.map.setCenter(xy, parseInt(lnk.zoom));
-        } else {
-            Waze.map.setCenter(xy);
-        }
+        Waze.map.setCenter(xy, (lnk.zoom && lnk.zoom > 3 ? parseInt(lnk.zoom) : minZoomLevel));
     }
 
     function parseLink(permalink) {
@@ -746,7 +746,7 @@
                     var count = "error";
                     isRequestActive = false;
                     updateInProgressIndicator();
-                    if (res.status === 200) {
+                    if (res.status === 200 && res.responseHeaders.match(/content-type: application\/json/)) {
                         var text = JSON.parse(res.responseText);
                         count = text.count;
                         if (text.result == 'success') {
@@ -812,7 +812,7 @@
                 timeout: requestsTimeout,
                 onload: function(res) {
                     var count = "error";
-                    if (res.status === 200) {
+                    if (res.status === 200 && res.responseHeaders.match(/content-type: application\/json/)) {
                         var text = JSON.parse(res.responseText);
                         count = text.count;
                         //alert(text.count);
@@ -821,6 +821,18 @@
                         count = text.count;
                     }
                     */
+                    }
+                    else if (res.responseHeaders.match(/content-type: text\/html/)) {
+                        if (res.responseText.match(/Authorization needed/)) {
+                            alert("WME Add City Helper:\n" +
+                                  "Для работы с таблицей запросов необходима авторизация. Это разовое действие.\n" +
+                                  "Сейчас Вы будете перенаправлены на внешнюю страницу, где сможете подтвердить права доступа.\n" +
+                                  "После подтверждения перезагрузите редактор, чтобы изменения вступили в силу.");
+                        }
+                        var w = window.open();
+                        w.document.open();
+                        w.document.write(res.responseText);
+                        w.document.close();
                     }
                     else {
                         alert("Error loading requests count. Response: " + res.responseText);
