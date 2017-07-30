@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WME Add City Helper
 // @namespace    madnut.ua@gmail.com
-// @version      0.2.1
+// @version      0.2.2
 // @description  Helps to add cities using WME Requests spreadsheet
 // @author       madnut
 // @include      https://www.waze.com/editor/*
@@ -157,11 +157,17 @@
                         '<div class="form-group">' +
                         '<label class="control-label">Имя нового НП</label>' +
                         '<div class="controls input-group">' +
-                        '<input class="form-control" autocomplete="off" maxlength="100" id="achCity" name="" title="Запрошенное имя НП" type="text" value="N/A" readonly="readonly" />' +
                         // goto button
                         '<span class="input-group-btn">' +
-                        '<button id="achJumpToRequest" class="btn btn-primary" type="button" data-original-title="" title="Перейти к сегменту" style="padding: 0 8px; border-bottom-left-radius: 0; border-top-left-radius: 0; font-size: 16px">' +
+                        '<button id="achJumpToRequest" class="btn btn-primary" type="button" data-original-title="" title="Перейти к сегменту" style="padding: 0 8px; border-bottom-right-radius: 0; border-top-right-radius: 0; font-size: 16px">' +
                         '<i class="fa fa-crosshairs"></i>' +
+                        '</button>' +
+                        '</span>' +
+                        '<input class="form-control" autocomplete="off" maxlength="100" id="achRequestedCity" name="" title="Запрошенное имя НП" type="text" value="N/A" readonly="readonly" />' +
+                        // apply button
+                        '<span class="input-group-btn">' +
+                        '<button id="achApplyRequestedCity" class="btn btn-primary" type="button" data-original-title="" title="Вставить это имя в поле ввода" style="padding: 0 8px; border-bottom-left-radius: 0; border-top-left-radius: 0; font-size: 16px">' +
+                        '<i class="fa fa-paw"></i>' +
                         '</button>' +
                         '</span>' +
                         '</div>' +
@@ -276,7 +282,13 @@
 
             if (panelElement.id !== '') {
                 document.getElementById('achJumpToRequest').onclick = onJumpToClick;
-
+                document.getElementById('achApplyRequestedCity').onclick = function() {
+                    var cityName = document.getElementById('achRequestedCity').value;
+                    if (cityName !== '' && cityName !== 'N/A') {
+                        ChangeCity(cityName, false);
+                    }
+                    return false;
+                };
                 document.getElementById('achLockRequest').onclick = onLockRequest;
                 document.getElementById('achApproveRequest').onclick = onApproveRequest;
                 document.getElementById('achDeclineRequest').onclick = onDeclineRequest;
@@ -288,14 +300,14 @@
                     document.getElementById('achApplyFoundCity').onclick = function() {
                         var cityName = document.getElementById('achFoundCity').value;
                         if (cityName !== '' && cityName !== 'N/A') {
-                            ChangeCity(cityName);
+                            ChangeCity(cityName, true);
                         }
                         return false;
                     };
                     document.getElementById('achApplySuggestedCity').onclick = function() {
                         var cityName = document.getElementById('achSuggestedName').value;
                         if (cityName !== '' && cityName !== 'N/A') {
-                            ChangeCity(cityName);
+                            ChangeCity(cityName, true);
                         }
                         return false;
                     };
@@ -306,17 +318,19 @@
         if (document.getElementById(panelID) !== null) {
             if (curRequest.requestedcity) {
                 document.getElementById('achAuthor').value = curRequest.author;
-                document.getElementById('achCity').value = curRequest.requestedcity;
+                document.getElementById('achRequestedCity').value = curRequest.requestedcity;
                 //document.getElementById('achPermalink').value = curRequest.permalink;
                 document.getElementById('achJumpToRequest').disabled = false;
+                document.getElementById('achApplyRequestedCity').disabled = false;
 
                 document.getElementById("achTab").click();
             }
             else {
                 document.getElementById('achAuthor').value = "N/A";
-                document.getElementById('achCity').value = "N/A";
+                document.getElementById('achRequestedCity').value = "N/A";
                 //document.getElementById('achPermalink').value = "N/A";
                 document.getElementById('achJumpToRequest').disabled = true;
+                document.getElementById('achApplyRequestedCity').disabled = true;
             }
 
             updateRequestStatus();
@@ -880,12 +894,12 @@
         return controlsMap[id];
     }
 
-    function ChangeCity(cityName) {
+    function ChangeCity(cityName, doSave) {
         $(getEditFormControlName('form')).click();
 
         setTimeout(function() {
 
-            var needSave = false;
+            var cityChanged = false;
             var city = $(getEditFormControlName('cityname'));
             if (city.val() == cityName) {
                 alert('НП уже имеет такое имя. Отмена.');
@@ -900,9 +914,10 @@
 
                 if (city.val().length === 0 ||
                     (city.val().length !== 0 &&
-                     confirm('Другое имя НП уже присвоено данному сегменту. Вы уверены, что хотите изменить его?'))) {
+                     confirm('Другое имя НП уже присвоено данному сегменту. \nВы уверены, что хотите изменить его?'))) {
+
                     city.val(cityName).change();
-                    needSave = true;
+                    cityChanged = true;
 
                     var street = $(getEditFormControlName('streetname')).val().length;
                     if (!street) {
@@ -924,7 +939,16 @@
                     }
                 }
             }
-            $('button[' + (needSave ? getEditFormControlName('save') : getEditFormControlName('cancel')) + ']').click();
+            if (doSave === true && cityChanged) {
+                $('button[' + getEditFormControlName('save') + ']').click();
+            }
+            else if (cityChanged) {
+                city.focus();
+                city.select();
+            }
+            else {
+                $('button[' + getEditFormControlName('cancel') + ']').click();
+            }
         }, 60);
     }
 
