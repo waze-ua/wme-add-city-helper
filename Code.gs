@@ -113,8 +113,8 @@ function sendEmail(row) {
   var Comment = sheet.getRange(cid.outmsg + currRow).getValue();
   var NickSolver = sheet.getRange(cid.solvernick + currRow).getValue();
 
-  if (!Result || !FinalMes || !Comment || !NickSolver) {
-    Browser.msgBox("Письмо не может быть отправлено. Заполните столбцы " + cid.result + ", " + cid.addedcity + ", " + cid.outmsg + ", " + cid.solvernick);
+  if (!Result || !FinalMes || !NickSolver) {
+    Browser.msgBox("Письмо не может быть отправлено. Заполните столбцы " + cid.result + ", " + cid.addedcity + ", " + cid.solvernick);
     return {
       "result": "error sending email - empty cells"
     };
