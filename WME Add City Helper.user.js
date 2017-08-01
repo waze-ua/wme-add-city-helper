@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WME Add City Helper
 // @namespace    madnut.ua@gmail.com
-// @version      0.3.0
+// @version      0.3.1
 // @description  Helps to add cities using WME Requests spreadsheet
 // @author       madnut
 // @include      https://www.waze.com/editor/*
@@ -38,6 +38,14 @@
             "apiUrl": "https://script.google.com/macros/s/AKfycby2OUnHmGkbTNeJDBcXu4zZ6eyNngh6XHpkcU_tsoVSmHn-NzY/exec"
             // dev
             //"apiUrl": "https://script.google.com/macros/s/AKfycbxgluud2CmzFqpRm4Bp379UdEjuKhelt-0nT1feY_U/dev"
+        },
+        RS: {
+            "country": "Россия",
+            "code": "186",
+            // prod
+            "apiUrl": "https://script.google.com/macros/s/AKfycbwTVr3PRnJAAEGWQFBRjt4bw4nO_-Ahy7Z26H1PAT6I_XDTOOrg/exec"
+            // dev
+            //"apiUrl": "https://script.google.com/macros/s/AKfycbzqA15-fy4g4StdRUmnuMj9z6rJ56gQPjCYpgCMni7h/dev"
         }
     };
 
@@ -140,6 +148,12 @@
                         var html =
                             '<h4>WME Add City Helper <sup>' + GM_info.script.version + '</sup></h4>'+
                             '</br>' +
+                            // Level 5 save
+                            '<div class="form-group">' +
+                            '<button id="achSaveLevel5" class="action-button btn btn-positive btn-success" type="button" title="L5 Save: Сохранить информацию о созданном НП в таблице Level 5">' +
+                            '<i class="fa fa-save"></i>&nbsp;Создал НП без запроса' +
+                            '</button>' +
+                            '</div>' +
                             // block 1
                             '<fieldset id="achActiveRequestPanel" style="border: 1px solid silver; padding: 8px; border-radius: 4px;">' +
                             '<legend style="margin-bottom:0px; border-bottom-style:none;width:auto;"><h5 style="font-weight: bold;">Текущий запрос НП (' + cfg.country + ')</h5></legend>' +
@@ -178,7 +192,7 @@
                             '</div>' +
                             '<div class="form-group">' +
                             '<label class="control-label">Действия</label>' +
-                            '<div class="btn-toolbar">' +
+                            '<div class="btn-toolbar" style="margin: auto;">' +
                             // lock request
                             '<button id="achLockRequest" class="btn btn-info" type="button" title="Взять запрос в работу (залочить)" style="font-size: 16px">' +
                             '<i class="fa fa-lock"></i>' +
@@ -281,6 +295,8 @@
                     document.getElementById('achDeclineRequest').onclick = onDeclineRequest;
                     document.getElementById('achSendEmail').onclick = onSendEmail;
 
+                    document.getElementById('achSaveLevel5').onclick = onSaveLevel5;
+
                     //Ukraine
                     if (cfg.code == "232") {
                         document.getElementById('achCheckInMinRegion').onclick = onCheckMinRegion;
@@ -380,6 +396,71 @@
                         btn3.disabled = true;
                         btn4.disabled = true;
                         break;
+                }
+            }
+        }
+
+        function onSaveLevel5() {
+            var buttonID = 'achSaveLevel5';
+            var cfg = config[Waze.model.countries.top.abbr];
+            var selectedItem = Waze.selectionManager.selectedItems[0];
+
+            if (cfg && selectedItem) {
+                var cityName, segmentDate, cityID, permalink;
+                var user = Waze.loginManager.user.userName;
+
+                var attr = selectedItem.model.attributes;
+                if (attr) {
+                    var street = Waze.model.streets.get(attr.primaryStreetID);
+                    cityID = street.cityID;
+                    var city = Waze.model.cities.get(cityID);
+                    cityName = city.attributes.name;
+                    var attrDate = attr.updatedOn ? attr.updatedOn : attr.createdOn;
+                    segmentDate = new Date(attrDate).toISOString();
+
+                    // generate permalink
+                    var centroid = selectedItem.geometry.getCentroid(true); // without "true" it will return start point as a centroid
+                    var lnk = OpenLayers.Layer.SphericalMercator.inverseMercator(centroid.x, centroid.y);
+                    permalink = location.origin + location.pathname + "?env=row&lon=" + lnk.lon + "&lat=" + lnk.lat + "&zoom=4&segments=" + attr.id;
+                    permalink = encodeURIComponent(permalink);
+                }
+
+                if (cityName && segmentDate && cityID && permalink) {
+                    GM_xmlhttpRequest({
+                        url: cfg.apiUrl + '?func=saveLevel5&p1=' + user + '&p2=' + cityName + '&p3=' + permalink + '&p4=' + segmentDate + '&p5=' + cityID,
+                        method: 'GET',
+                        timeout: requestsTimeout,
+                        onload: function(res) {
+                            setButtonClass(buttonID, 'fa fa-save');
+                            var msg = "Error processing request. Response: " + res.responseText;
+                            if (res.status === 200 && res.responseHeaders.match(/content-type: application\/json/i)) {
+                                var text = JSON.parse(res.responseText);
+                                if (text.result) {
+                                    if (text.result == 'found') {
+                                        msg = "НП найден в таблице. Строка " + text.line;
+                                    }
+                                    else if (text.result == 'add') {
+                                        msg = "НП успешно добавлен в таблицу.";
+                                    }
+                                }
+                            }
+                            alert(msg);
+                        },
+                        onreadystatechange: function(res) {
+                            setButtonClass(buttonID, 'fa fa-spinner fa-pulse');
+                        },
+                        ontimeout: function(res) {
+                            alert("Sorry, request timeout!");
+                            setButtonClass(buttonID, 'fa fa-save');
+                        },
+                        onerror: function(res) {
+                            alert("Sorry, request error!");
+                            setButtonClass(buttonID, 'fa fa-save');
+                        }
+                    });
+                }
+                else {
+                    log("Can't send saveLevel5 request. Some required fields are empty");
                 }
             }
         }
@@ -829,27 +910,12 @@
                         if (res.status === 200 && res.responseHeaders.match(/content-type: application\/json/i)) {
                             var text = JSON.parse(res.responseText);
                             count = text.count;
-                            //alert(text.count);
-                            /*
-                    if (text.result == "success") {
-                        count = text.count;
-                    }
-                    */
                         }
                         else if (res.responseHeaders.match(/content-type: text\/html/i)) {
-                            if (res.responseText.match(/Authorization needed/)) {
-                                alert("WME Add City Helper:\n" +
-                                      "Для работы с таблицей запросов необходима авторизация. Это разовое действие.\n" +
-                                      "Сейчас Вы будете перенаправлены на внешнюю страницу, где сможете подтвердить права доступа.\n" +
-                                      "После подтверждения перезагрузите редактор, чтобы изменения вступили в силу.");
-                            }
-                            var w = window.open();
-                            w.document.open();
-                            w.document.write(res.responseText);
-                            w.document.close();
+                            displayHtmlPage(res);
                         }
                         else {
-                            alert("Error loading requests count. Response: " + res.responseText);
+                            alert("Error loading requests count. Response: " + res.responseText + res.responseHeaders);
                         }
                         updateRequestsCount(count);
                     },
@@ -860,6 +926,22 @@
                         alert("Sorry, request error!");
                     }
                 });
+            }
+        }
+
+        function displayHtmlPage(res) {
+            if (res.responseText.match(/Authorization needed/) || res.responseText.match(/ServiceLogin/)) {
+                alert("WME Add City Helper:\n" +
+                      "Для работы с таблицей запросов необходима авторизация. Это разовое действие.\n" +
+                      "Сейчас Вы будете перенаправлены на внешнюю страницу, где сможете подтвердить права доступа.\n" +
+                      "После подтверждения закройте страницу и перезагрузите редактор, чтобы изменения вступили в силу.");
+            }
+            var w = window.open();
+            w.document.open();
+            w.document.write(res.responseText);
+            w.document.close();
+            if (res.responseText.match(/ServiceLogin/)) {
+                w.location = res.finalUrl;
             }
         }
 

@@ -1,6 +1,6 @@
 // ==AppsScript==
 // @name         Add City Helper
-// @version      0.2.0
+// @version      0.2.1
 // @description  API for processing requests directly from WME
 // @author       madnut
 // @email        madnut.ua@gmail.com
@@ -23,9 +23,10 @@ var aIndex = {
   "city":        ch2index(cid.cityname) - 1,
   "requestor":   ch2index(cid.fio) - 1,
   "permalink":   ch2index(cid.permalink) - 1,
-  // additional columns goes after the last one (cid.issent)
-  "status":      ch2index(cid.issent),
-  "row":         ch2index(cid.issent) + 1
+  "stateid":     ch2index(cid.stateid) - 1,
+  // additional *virtual* columns goes after the last one (cid.stateid)
+  "status":      ch2index(cid.stateid),
+  "row":         ch2index(cid.stateid) + 1
 };
 
 function doGet(e) {
@@ -53,6 +54,9 @@ function doGet(e) {
     break;
   case "sendEmail":
     resultString = sendEmail(e.parameter.row);
+    break;
+  case "saveLevel5":
+    return sendLevel5(e);
     break;
   default:
     resultString = {
@@ -118,7 +122,7 @@ function _getActiveRequests() {
     };
   }
 
-  var values = foundSheet.getRange(cid.date + startRow + ':' + cid.issent).getValues();
+  var values = foundSheet.getRange(cid.date + startRow + ':' + cid.stateid).getValues();
 
   for (var x = 0; x < values.length; x++) {
     var value = values[x];
@@ -173,7 +177,7 @@ function getCityRequest(user) {
           "row": res.values[x][aIndex.row],
           "status": res.values[x][aIndex.status],
           "countrycode": countryID,
-          "statecode": "1",
+          "statecode": (res.values[x][aIndex.stateid] ? res.values[x][aIndex.stateid] : "1"),
           "count": res.values.length
         };
       }
@@ -255,8 +259,8 @@ function processRequest(row, user, action, note, addedcity) {
       } else {
         range = foundSheet.getRange(cid.result + row).setValue(action == "approve" ? "да" : "нет");
         range = foundSheet.getRange(cid.solvernick + row).setValue(user);
-        // for Ukraine we have the same column for city and for comment
-        if (countryID == "232" && action == "approve") {
+        // for Ukraine & Russia we have the same column for city and for comment
+        if ((countryID == "232" || countryID == "186") && action == "approve") {
           note = addedcity + (note ? (" - " + note) : '');
         } else {
           range = foundSheet.getRange(cid.addedcity + row).setValue(addedcity);

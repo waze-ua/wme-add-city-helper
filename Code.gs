@@ -3,23 +3,25 @@ var countryID = "232";
 
 // "Идентификаторы" столбцов
 var cid = {
-  "date":       "A",
-  "fio":        "B",
-  "email":      "C",
-  "permalink":  "D",
-  "cityname":   "E",
-  "statename":  "F",
-  "region":     "G",
-  "action":      "", // not used yet
-  "result":     "M",
-  "solvernick": "N",
-  "addedcity":  "O",
-  "outmsg":     "O", // same as addedcity
-  "issent":     "Q",
-  "delay":      "R",
-  "cityid":     "P",
-  "cityfinal":  "S",
-  "requesturl":  "" // not used yet
+  "date":        "A",
+  "fio":         "B",
+  "email":       "C",
+  "permalink":   "D",
+  "cityname":    "E",
+  "statename":   "F",
+  "region":      "G",
+  "action":       "", // not used yet
+  "result":      "M",
+  "solvernick":  "N",
+  "addedcity":   "O",
+  "outmsg":      "O", // same as addedcity
+  "issent":      "Q",
+  "delay":       "R",
+  "cityid":      "P",
+  "cityfinal":   "S",
+  "requesturl":  "V", // not used yet
+  "emailstatus": "T",
+  "stateid":     "U"
 };
 //************************************************************************************************
 
