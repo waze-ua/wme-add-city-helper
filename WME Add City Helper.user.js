@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WME Add City Helper
 // @namespace    madnut.ua@gmail.com
-// @version      0.3.1
+// @version      0.4.0
 // @description  Helps to add cities using WME Requests spreadsheet
 // @author       madnut
 // @include      https://www.waze.com/editor/*
@@ -20,8 +20,9 @@
 (function() {
     'use strict';
 
-    var requestsTimeout = 15000; // in ms
+    var requestsTimeout = 20000; // in ms
     var minZoomLevel = 4;
+    var minAnalyzerVersion = 110; // Ukraine's MinRegion Analyzer
     var config = {
         BO: {
             "country": "Беларусь",
@@ -92,6 +93,50 @@
             return;
         }
 
+        var bordersLayer = new OpenLayers.Layer.Vector("City Borders", {
+            displayInLayerSwitcher: true,
+            uniqueName: "ACHBorders"
+        });
+
+        Waze.map.addLayer(bordersLayer);
+
+        function drawCityBorder(cityname, coords)
+        {
+            bordersLayer.destroyFeatures();
+            if (coords) {
+                var gm = JSON.parse(coords);
+
+                gm.coords.forEach(function(itemsA, i, arr) {
+                    itemsA.forEach(function(itemsB, j, arr) {
+                        var polyPoints = new Array(itemsB.length);
+                        itemsB.forEach(function(itemsC, k, arr) {
+
+                            polyPoints[k] = new OpenLayers.Geometry.Point(itemsC[0], itemsC[1]).transform(
+                                new OpenLayers.Projection("EPSG:4326"), // transform from WGS 1984
+                                Waze.map.getProjectionObject() // to Spherical Mercator Projection
+                            );
+                        });
+                        var polygon = new OpenLayers.Geometry.Polygon(new OpenLayers.Geometry.LinearRing(polyPoints));
+                        var site_style = new borderStyle('#FFFF00', cityname);
+
+                        var poly = new OpenLayers.Feature.Vector(polygon, null, site_style);
+                        bordersLayer.addFeatures(poly);
+                    });
+                });
+            }
+        }
+
+        function borderStyle(color, label) {
+            this.fill = false;
+            this.stroke = true;
+            this.strokeColor = color;
+            this.strokeWidth = 3;
+            this.label = label;
+            this.fontSize = 20;
+            this.fontColor = color;
+            this.fontWeight = "bold";
+        }
+
         function drawIndicator() {
             var tooltipText = "Количество&nbsp;необработанных запросов&nbsp;НП.&nbsp;Нажмите, чтобы&nbsp;перейти&nbsp;к&nbsp;первому.";
 
@@ -128,6 +173,18 @@
             var panelID = "WME-ACH";
             var sItems = Waze.selectionManager.selectedItems;
             if (!document.getElementById(panelID) && sItems.length > 0 && sItems[0].model.type === 'segment') {
+                var cityID, stateID;
+                var primaryStreetID = sItems[0].model.attributes.primaryStreetID;
+                if (primaryStreetID) {
+                    var street = Waze.model.streets.objects[primaryStreetID];
+                    if (street.cityID) {
+                        var city = Waze.model.cities.objects[street.cityID];
+                        cityID = street.cityID;
+                        if (city.attributes.stateID) {
+                            stateID = city.attributes.stateID;
+                        }
+                    }
+                }
                 var panelElement = document.createElement('div');
                 panelElement.id = panelID;
 
@@ -154,6 +211,18 @@
                             '<i class="fa fa-save"></i>&nbsp;Создал НП без запроса' +
                             '</button>' +
                             '</div>' +
+                            // block 0
+                            '<fieldset id="achInfoPanel" style="border: 1px solid silver; padding: 8px; border-radius: 4px;">' +
+                            '<legend style="margin-bottom:0px; border-bottom-style:none;width:auto;"><h5 style="font-weight: bold;">Информация о сегменте</h5></legend>' +
+                            '<div class="additional-attributes">' +
+                            '<label style="font-weight: bold;">City ID:&nbsp;</label>' +
+                            '<span id="achCityID">' + (cityID ? cityID : 'N/A') + '</span></br>' +
+                            '<label style="font-weight: bold;">State ID:&nbsp;</label>' +
+                            '<span id="achStateID">' + (stateID ? stateID : 'N/A') + '</span>' +
+                            '</div>' +
+                            // end 0
+                            '</fieldset>' +
+                            '</br>' +
                             // block 1
                             '<fieldset id="achActiveRequestPanel" style="border: 1px solid silver; padding: 8px; border-radius: 4px;">' +
                             '<legend style="margin-bottom:0px; border-bottom-style:none;width:auto;"><h5 style="font-weight: bold;">Текущий запрос НП (' + cfg.country + ')</h5></legend>' +
@@ -536,7 +605,10 @@
                         setButtonClass(buttonID, 'fa fa-map-o');
                         if (res.status === 200 && res.responseHeaders.match(/content-type: application\/json/i)) {
                             var text = JSON.parse(res.responseText);
-                            //alert(res.responseText);
+                            if (!text.version || parseInt(text.version) < minAnalyzerVersion) {
+                                alert("Ваша версия анализатора для МинРегиона устарела. Пожалуйста, скачайте новую!");
+                                updateMinRegionInfo(emptyResponse);
+                            }
                             updateMinRegionInfo(text);
                         }
                         else {
@@ -619,10 +691,12 @@
 
             if (curRequest.row && cfg) {
                 var selectedItem = Waze.selectionManager.selectedItems[0].model;
-                if (selectedItem.type === "segment") {
+                if (selectedItem.type === "segment" && selectedItem.attributes.primaryStreetID) {
                     var street = Waze.model.streets.objects[selectedItem.attributes.primaryStreetID];
-                    var city = Waze.model.cities.objects[street.cityID];
-                    curRequest.addedcity = city.attributes.name;
+                    if (street.cityID) {
+                        var city = Waze.model.cities.objects[street.cityID];
+                        curRequest.addedcity = city.attributes.name;
+                    }
                 }
 
                 curRequest.note = prompt('Причина отказа?', 'Такой НП уже существует.');
@@ -707,22 +781,27 @@
 
         function updateMinRegionInfo(rs) {
             var disableButtons = true;
+
             if (rs.foundcity) {
                 disableButtons = false;
                 document.getElementById('achFoundCity').value = rs.foundcity;
                 document.getElementById('achSuggestedName').value = rs.suggestedcity;
 
-                document.getElementById('achMRResponseStatus').style.color = (rs.status == 'OK' ? 'green' : (rs.status.match(/error/) ? 'red' : 'darkorange'));
-                document.getElementById('achMRResponseStatus').innerHTML = rs.status.replace(',', '</br>');
-                document.getElementById('achMRResponseComments').innerHTML = rs.comments.replace(',', '</br>');
+                // draw border
+                drawCityBorder(rs.foundcity, rs.geometry);
             }
             else {
                 document.getElementById('achFoundCity').value = 'N/A';
                 document.getElementById('achSuggestedName').value = 'N/A';
-                document.getElementById('achMRResponseStatus').innerHTML = '';
-                document.getElementById('achMRResponseComments').innerHTML = '';
 
+                drawCityBorder(null, null);
             }
+
+            document.getElementById('achMRResponseStatus').style.color = (rs.status == 'OK' ? 'green' : (rs.status.match(/error/i) ? 'red' : 'darkorange'));
+            document.getElementById('achMRResponseStatus').innerHTML = rs.status.replace(',', '</br>');
+            document.getElementById('achMRResponseComments').innerHTML = rs.comments.replace(',', '</br>');
+
+
             document.getElementById('achApplyFoundCity').disabled = disableButtons;
             document.getElementById('achApplySuggestedCity').disabled = disableButtons;
         }
