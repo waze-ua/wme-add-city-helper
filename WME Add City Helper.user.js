@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WME Add City Helper
 // @namespace    madnut.ua@gmail.com
-// @version      0.4.1
+// @version      0.5.0
 // @description  Helps to add cities using WME Requests spreadsheet
 // @author       madnut
 // @include      https://www.waze.com/editor/*
@@ -12,6 +12,7 @@
 // @connect      script.googleusercontent.com
 // @connect      localhost
 // @grant        GM_xmlhttpRequest
+// @grant        GM_setClipboard
 // @updateURL    https://github.com/madnut-ua/wme_addcityhelper/raw/master/WME%20Add%20City%20Helper.user.js
 // @downloadURL  https://github.com/madnut-ua/wme_addcityhelper/raw/master/WME%20Add%20City%20Helper.user.js
 // @supportURL   https://github.com/madnut-ua/wme_addcityhelper/issues
@@ -27,6 +28,7 @@
         BO: {
             "country": "Беларусь",
             "code": "37",
+            "requestsTable": "https://docs.google.com/spreadsheets/d/1uuRY8ib5h_8xMfpzgXG2N78foMtftUNkPzJxP56mDXI/edit#gid=573607847",
             // prod
             "apiUrl": "https://script.google.com/macros/s/AKfycbxw0VxylM8Y8mPEMK5U3aIPcwR2ev91ln7dvQTr2I7t-bFmFm6I/exec"
             // dev
@@ -35,6 +37,7 @@
         UP: {
             "country": "Україна",
             "code": "232",
+            "requestsTable": "https://docs.google.com/spreadsheets/d/1C6P-VmSTR2KTS9LMIFZFQyf7r57ki9Mzi7B-HNwjBbM/edit#gid=573607847",
             // prod
             "apiUrl": "https://script.google.com/macros/s/AKfycby2OUnHmGkbTNeJDBcXu4zZ6eyNngh6XHpkcU_tsoVSmHn-NzY/exec"
             // dev
@@ -43,6 +46,7 @@
         RS: {
             "country": "Россия",
             "code": "186",
+            "requestsTable": "https://docs.google.com/spreadsheets/d/1ddcW8EmNjojJp7EQ4AYPdfBqNWe28WqRaQ_RtkB8JAU/edit#gid=573607847",
             // prod
             "apiUrl": "https://script.google.com/macros/s/AKfycbwTVr3PRnJAAEGWQFBRjt4bw4nO_-Ahy7Z26H1PAT6I_XDTOOrg/exec"
             // dev
@@ -62,10 +66,10 @@
         if (typeof Waze === "undefined" ||
             typeof Waze.map === "undefined" ||
             typeof Waze.selectionManager === "undefined" ||
-            typeof Waze.model.countries.top.abbr === "undefined" ||
+            typeof Waze.model.countries === "undefined" ||
             typeof I18n === "undefined" ||
             typeof I18n.translations === "undefined") {
-            setTimeout(ACHelper_bootstrap, 500);
+            setTimeout(ACHelper_bootstrap, 700);
             return;
         }
         ACHelper_init();
@@ -85,7 +89,6 @@
             "addedcity": "",
             "status": ""
         };
-        var isRequestActive = false;
 
         var editPanel = $("#edit-panel");
         if (!editPanel) {
@@ -143,8 +146,8 @@
             var $outputElemContainer = $('<div>', { id: 'achCountContainer',
                                                    style: 'white-space:nowrap; cursor:pointer; position:relative; border-radius:23px; height:23px; display:inline; float:right; padding-left:10px; padding-right:10px; margin:9px 5px 8px 5px; font-weight:bold; font-size:medium;'});
             var $spinnerElem = $('<i>', { id: 'achSpinner',
-                                         style: 'display:none; position:relative; left:-3px;',
-                                         class: 'fa fa-spin fa-spinner' });
+                                         style: 'display:inline-block; position:relative; left:-3px;',
+                                         class: '' });
             var $outputElem = $('<span>', { id: 'achCount',
                                            click: getCityRequest,
                                            style: 'text-decoration:none',
@@ -165,26 +168,16 @@
 
         function drawTab() {
             var cfg =  config[Waze.model.countries.top.abbr];
-            // country is not supported
+
             if (!cfg) {
+                // country is not supported
                 return;
             }
 
             var panelID = "WME-ACH";
             var sItems = Waze.selectionManager.selectedItems;
             if (!document.getElementById(panelID) && sItems.length > 0 && sItems[0].model.type === 'segment') {
-                var cityID, stateID;
-                var primaryStreetID = sItems[0].model.attributes.primaryStreetID;
-                if (primaryStreetID) {
-                    var street = Waze.model.streets.objects[primaryStreetID];
-                    if (street.cityID) {
-                        var city = Waze.model.cities.objects[street.cityID];
-                        cityID = street.cityID;
-                        if (city.attributes.stateID) {
-                            stateID = city.attributes.stateID;
-                        }
-                    }
-                }
+                var segInfo = getSegmentInfo();
                 var panelElement = document.createElement('div');
                 panelElement.id = panelID;
 
@@ -198,44 +191,36 @@
                     var tabContent = getElementsByClassName('tab-content', userTabs)[0];
 
                     if (typeof tabContent !== "undefined") {
-                        newtab = document.createElement('li');
+                        var newtab = document.createElement('li');
                         newtab.innerHTML = '<a href="#' + panelID + '" id="achTab" data-toggle="tab">ACH</a>';
                         navTabs.appendChild(newtab);
 
                         var html =
-                            '<h4>WME Add City Helper <sup>' + GM_info.script.version + '</sup></h4>'+
-                            '</br>' +
-                            // Level 5 save
-                            '<div class="form-group">' +
-                            '<button id="achSaveLevel5" class="action-button btn btn-positive btn-success" type="button" title="L5 Save: Сохранить информацию о созданном НП в таблице Level 5">' +
-                            '<i class="fa fa-save"></i>&nbsp;Создал НП без запроса' +
-                            '</button>' +
-                            '</div>' +
+                            '<h5>WME Add City Helper <sup>' + GM_info.script.version + '</sup>&nbsp;(' + cfg.country + ')</h5>'+
                             // block 0
-                            '<fieldset id="achInfoPanel" style="border: 1px solid silver; padding: 8px; border-radius: 4px;">' +
-                            '<legend style="margin-bottom:0px; border-bottom-style:none;width:auto;"><h5 style="font-weight: bold;">Информация о сегменте</h5></legend>' +
+                            '<div class="form-group">' +
+                            '<label class="control-label">Информация о сегменте</label>' +
                             '<div class="additional-attributes">' +
                             '<label style="font-weight: bold;">City ID:&nbsp;</label>' +
-                            '<span id="achCityID">' + (cityID ? cityID : 'N/A') + '</span></br>' +
+                            '<span id="achCityID">' + (segInfo.cityID ? segInfo.cityID : 'N/A') +
+                            '</span>' +
+                            '<button id="achCopyCityID" class="btn-link" type="button" title="Скопировать в буфер" style="height: auto;">' +
+                            '<i class="fa fa-clipboard"></i>' +
+                            '</button>' +
+                            '</br>' +
                             '<label style="font-weight: bold;">State ID:&nbsp;</label>' +
-                            '<span id="achStateID">' + (stateID ? stateID : 'N/A') + '</span>' +
+                            '<span id="achStateID">' + (segInfo.stateID ? segInfo.stateID : 'N/A') +
+                            '</span>' +
+                            '<button id="achCopyStateID" class="btn-link" type="button" title="Скопировать в буфер" style="height: auto;">' +
+                            '<i class="fa fa-clipboard"></i>' +
+                            '</button>' +
+                            '</div>' +
                             '</div>' +
                             // end 0
-                            '</fieldset>' +
-                            '</br>' +
                             // block 1
-                            '<fieldset id="achActiveRequestPanel" style="border: 1px solid silver; padding: 8px; border-radius: 4px;">' +
-                            '<legend style="margin-bottom:0px; border-bottom-style:none;width:auto;"><h5 style="font-weight: bold;">Текущий запрос НП (' + cfg.country + ')</h5></legend>' +
-                            // author
                             '<div class="form-group">' +
-                            '<label class="control-label">Автор</label>' +
-                            '<div class="controls">' +
-                            '<input class="form-control" autocomplete="off" maxlength="100" id="achAuthor" name="" title="Автор запроса" type="text" value="N/A" readonly="readonly" />' +
-                            '</div>' +
-                            '</div>' +
+                            '<label class="control-label">Текущий запрос НП</label>' +
                             // city
-                            '<div class="form-group">' +
-                            '<label class="control-label">Имя нового НП</label>' +
                             '<div class="controls input-group">' +
                             // goto button
                             '<span class="input-group-btn">' +
@@ -252,36 +237,77 @@
                             '</span>' +
                             '</div>' +
                             '</div>' +
+                            // author
+                            '<div class="form-group">' +
+                            '<label class="control-label">Автор</label>' +
+                            '<div class="controls">' +
+                            '<span id="achAuthor">N/A</span></br>' +
+                            '</div>' +
+                            '</div>' +
                             // status
                             '<div class="form-group">' +
                             '<label class="control-label">Статус</label>' +
                             '<div class="controls">' +
-                            '<input class="form-control" autocomplete="off" maxlength="100" id="achStatus" name="" title="Статус запроса" type="text" value="N/A" readonly="readonly" />' +
+                            '<span id="achStatus" style="font-weight: bold;">N/A</span>' +
                             '</div>' +
                             '</div>' +
+                            // author
+                            //'<div class="form-group">' +
+                            //'<label class="control-label">Автор</label>' +
+                            //'<div class="controls">' +
+                            //'<input class="form-control" autocomplete="off" maxlength="100" id="achAuthor" name="" title="Автор запроса" type="text" value="N/A" readonly="readonly" />' +
+                            //'</div>' +
+                            //'</div>' +
+                            // status
+                            //'<div class="form-group">' +
+                            //'<label class="control-label">Статус</label>' +
+                            //'<div class="controls">' +
+                            //'<input class="form-control" autocomplete="off" maxlength="100" id="achStatus" name="" title="Статус запроса" type="text" value="N/A" readonly="readonly" />' +
+                            //'</div>' +
+                            //'</div>' +
+                            // actions
                             '<div class="form-group">' +
-                            '<label class="control-label">Действия</label>' +
-                            '<div class="btn-toolbar" style="margin: auto;">' +
+                            '<label class="control-label">Действия с запросом</label>' +
+                            '<div class="controls">' +
+                            '<div class="btn-toolbar">' +
                             // lock request
-                            '<button id="achLockRequest" class="btn btn-info" type="button" title="Взять запрос в работу (залочить)" style="font-size: 16px">' +
+                            '<button id="achLockRequest" class="btn btn-info" type="button" title="Взять запрос в работу (залочить)" style="font-size: 16px; padding: 6px 16px;">' +
                             '<i class="fa fa-lock"></i>' +
                             '</button>' +
                             // approve
-                            '<button id="achApproveRequest" class="btn btn-success" type="button" title="Одобрить запрос" style="font-size: 16px">' +
+                            '<button id="achApproveRequest" class="btn btn-success" type="button" title="Одобрить запрос" style="font-size: 16px; padding: 6px 16px;">' +
                             '<i class="fa fa-thumbs-up"></i>' +
                             '</button>' +
                             // decline
-                            '<button id="achDeclineRequest" class="btn btn-danger" type="button" title="Отказать" style="font-size: 16px">' +
+                            '<button id="achDeclineRequest" class="btn btn-danger" type="button" title="Отказать" style="font-size: 16px; padding: 6px 16px;">' +
                             '<i class="fa fa-thumbs-down"></i>' +
                             '</button>' +
                             // send email
-                            '<button id="achSendEmail" class="btn btn-default" type="button" title="Отправить письмо" style="font-size: 16px">' +
+                            '<button id="achSendEmail" class="btn btn-default" type="button" title="Отправить письмо" style="font-size: 16px; padding: 6px 16px;">' +
                             '<i class="fa fa-envelope-o"></i>' +
+                            '</button>' +
+                            // skip request
+                            '<button id="achSkipRequest" class="btn btn-warning" type="button" title="Перейти к следующему запросу" style="font-size: 16px; padding: 6px 16px;">' +
+                            '<i class="fa fa-forward"></i>' +
+                            '</button>' +
+                             // goto table cell
+                            '<button id="achGotoTableCell" class="btn-link" type="button" title="Перейти к запросу в таблице" style="">' +
+                            '<i class="fa fa-external-link"></i>&nbsp;Перейти к запросу в таблице' +
                             '</button>' +
                             '</div>' +
                             '</div>' +
+                            '</div>' +
                             // end 1
-                            '</fieldset>';
+
+                            // Level 5 save
+                            '<div class="form-group">' +
+                            '<label class="control-label">Другие действия</label>' +
+                            '<div class="controls">' +
+                            '<button id="achSaveLevel5" class="action-button btn btn-positive btn-success" type="button" title="L5 Save: Сохранить информацию о созданном НП в таблице Level 5">' +
+                            '<i class="fa fa-save"></i>&nbsp;Создал НП без запроса' +
+                            '</button>' +
+                            '</div>' +
+                            '</div>';
 
                         // Ukraine
                         if (cfg.code == "232") {
@@ -289,13 +315,14 @@
                             html +=
                                 // block 2
                                 '</br>' +
-                                '<fieldset id="achMinRegionPanel" style="border: 1px solid silver; padding: 8px; border-radius: 4px;">' +
-                                '<legend style="margin-bottom:0px; border-bottom-style:none;width:auto;"><h5 style="font-weight: bold;">МинРегион</h5></legend>' +
-                                // check name in MinRegion
                                 '<div class="form-group">' +
+                                '<label class="control-label">МинРегион</label>' +
+                                // check name in MinRegion
+                                '<div class="controls">' +
                                 '<button id="achCheckInMinRegion" class="action-button btn btn-lightning btn-positive" type="button" title="Проверить имя в МинРегионе">' +
                                 '<i class="fa fa-map-o"></i>&nbsp;Проверить' +
                                 '</button>' +
+                                '</div>' +
                                 '</div>' +
                                 // foundName
                                 '<div class="form-group">' +
@@ -330,9 +357,8 @@
                                 '<label style="font-weight: bold;">Комментарии:</label></br>' +
                                 '<span id="achMRResponseComments"></span>' +
                                 '</div>' +
-                                '</div>' +
-                                // end 2
-                                '</fieldset>';
+                                '</div>';
+                            // end 2
                         }
                         panelElement.innerHTML = html;
                         panelElement.className = "tab-pane";
@@ -347,6 +373,12 @@
                 }
 
                 if (panelElement.id !== '') {
+                    document.getElementById('achCopyCityID').onclick = function() {
+                        GM_setClipboard(document.getElementById('achCityID').innerHTML);
+                    };
+                    document.getElementById('achCopyStateID').onclick = function() {
+                        GM_setClipboard(document.getElementById('achStateID').innerHTML);
+                    };
                     document.getElementById('achJumpToRequest').onclick = function() {
                         if (curRequest.permalink) {
                             jumpToLink(curRequest.permalink);
@@ -355,7 +387,8 @@
                     document.getElementById('achApplyRequestedCity').onclick = function() {
                         var cityName = document.getElementById('achRequestedCity').value;
                         if (cityName !== '' && cityName !== 'N/A') {
-                            changeCity(cityName, false);
+                            var cutCity = cityName.split('(')[0];
+                            changeCity(cutCity, false);
                         }
                         return false;
                     };
@@ -363,6 +396,12 @@
                     document.getElementById('achApproveRequest').onclick = onApproveRequest;
                     document.getElementById('achDeclineRequest').onclick = onDeclineRequest;
                     document.getElementById('achSendEmail').onclick = onSendEmail;
+                    document.getElementById('achSkipRequest').onclick = onSkipRequest;
+
+                    document.getElementById('achGotoTableCell').onclick = function() {
+                        var w = window.open();
+                        w.location = cfg.requestsTable + '&range=A' + curRequest.row;
+                    };
 
                     document.getElementById('achSaveLevel5').onclick = onSaveLevel5;
 
@@ -389,20 +428,19 @@
 
             if (document.getElementById(panelID) !== null) {
                 if (curRequest.requestedcity) {
-                    document.getElementById('achAuthor').value = curRequest.author;
+                    document.getElementById('achAuthor').innerHTML = curRequest.author;
                     document.getElementById('achRequestedCity').value = curRequest.requestedcity;
-                    //document.getElementById('achPermalink').value = curRequest.permalink;
                     document.getElementById('achJumpToRequest').disabled = false;
                     document.getElementById('achApplyRequestedCity').disabled = false;
 
                     document.getElementById("achTab").click();
                 }
                 else {
-                    document.getElementById('achAuthor').value = "N/A";
+                    document.getElementById('achAuthor').innerHTML = "N/A";
                     document.getElementById('achRequestedCity').value = "N/A";
-                    //document.getElementById('achPermalink').value = "N/A";
                     document.getElementById('achJumpToRequest').disabled = true;
                     document.getElementById('achApplyRequestedCity').disabled = true;
+                    document.getElementById('achGotoTableCell').disabled = true;
                 }
 
                 updateRequestStatus();
@@ -416,9 +454,11 @@
         }
 
         function setButtonClass(id, className) {
-            var iButton = document.getElementById(id).firstChild;
-            if (iButton.className !== className) {
-                iButton.className = className;
+            if (id) {
+                var iButton = document.getElementById(id).firstChild;
+                if (iButton && iButton.className !== className) {
+                    iButton.className = className;
+                }
             }
         }
 
@@ -436,7 +476,7 @@
                 var btn3 = document.getElementById('achDeclineRequest');
                 var btn4 = document.getElementById('achSendEmail');
 
-                inputStatus.value = curRequest.status ? curRequest.status : 'N/A';
+                inputStatus.innerHTML = curRequest.status ? curRequest.status : 'N/A';
 
                 switch (curRequest.status)
                 {
@@ -445,139 +485,122 @@
                         btn2.disabled = false;
                         btn3.disabled = false;
                         btn4.disabled = true;
+                        inputStatus.style.color = 'blue';
                         break;
                     case 'locked':
                         btn1.disabled = true;
                         btn2.disabled = false;
                         btn3.disabled = false;
                         btn4.disabled = true;
+                        inputStatus.style.color = '#a05fa5';
                         break;
                     case 'approved':
+                        btn1.disabled = true;
+                        btn2.disabled = true;
+                        btn3.disabled = true;
+                        btn4.disabled = false;
+                        inputStatus.style.color = '#62a25f';
+                        break;
+                    case 'approved, emailed':
+                        btn1.disabled = true;
+                        btn2.disabled = true;
+                        btn3.disabled = true;
+                        btn4.disabled = true;
+                        inputStatus.style.color = '#62a25f';
+                        break;
                     case 'declined':
                         btn1.disabled = true;
                         btn2.disabled = true;
                         btn3.disabled = true;
                         btn4.disabled = false;
+                        inputStatus.style.color = '#e54444';
+                        break;
+                    case 'declined, emailed':
+                        btn1.disabled = true;
+                        btn2.disabled = true;
+                        btn3.disabled = true;
+                        btn4.disabled = true;
+                        inputStatus.style.color = '#e54444';
                         break;
                     default:
                         btn1.disabled = true;
                         btn2.disabled = true;
                         btn3.disabled = true;
                         btn4.disabled = true;
+                        inputStatus.style.color = 'black';
                         break;
                 }
             }
         }
 
         function onSaveLevel5() {
-            var buttonID = 'achSaveLevel5';
-            var cfg = config[Waze.model.countries.top.abbr];
-            var selectedItem = Waze.selectionManager.selectedItems[0];
+            function requestCallback(res) {
+                if (validateHTTPResponse(res)) {
+                    var msg = "Error processing request. Response: " + res.responseText;
+                    var text = JSON.parse(res.responseText);
 
-            if (cfg && selectedItem) {
-                var cityName, segmentDate, cityID, permalink;
+                    if (text.result) {
+                        if (text.result == 'found') {
+                            msg = "НП найден в таблице '" + text.sheet + "'. Строка " + text.line;
+                        }
+                        else if (text.result == 'add') {
+                            msg = "НП успешно добавлен в таблицу.";
+                        }
+                    }
+                    alert(msg);
+                }
+            }
+            var cfg = config[Waze.model.countries.top.abbr];
+
+            if (cfg) {
+                var segInfo = getSegmentInfo();
                 var user = Waze.loginManager.user.userName;
 
-                var attr = selectedItem.model.attributes;
-                if (attr) {
-                    var street = Waze.model.streets.get(attr.primaryStreetID);
-                    cityID = street.cityID;
-                    var city = Waze.model.cities.get(cityID);
-                    cityName = city.attributes.name;
-                    var attrDate = attr.updatedOn ? attr.updatedOn : attr.createdOn;
-                    segmentDate = new Date(attrDate).toISOString();
-
-                    // generate permalink
-                    var centroid = selectedItem.geometry.getCentroid(true); // without "true" it will return start point as a centroid
-                    var lnk = OpenLayers.Layer.SphericalMercator.inverseMercator(centroid.x, centroid.y);
-                    permalink = location.origin + location.pathname + "?env=row&lon=" + lnk.lon + "&lat=" + lnk.lat + "&zoom=4&segments=" + attr.id;
-                    permalink = encodeURIComponent(permalink);
-                }
-
-                if (cityName && segmentDate && cityID && permalink) {
-                    GM_xmlhttpRequest({
-                        url: cfg.apiUrl + '?func=saveLevel5&p1=' + user + '&p2=' + cityName + '&p3=' + permalink + '&p4=' + segmentDate + '&p5=' + cityID,
-                        method: 'GET',
-                        timeout: requestsTimeout,
-                        onload: function(res) {
-                            setButtonClass(buttonID, 'fa fa-save');
-                            var msg = "Error processing request. Response: " + res.responseText;
-                            if (res.status === 200 && res.responseHeaders.match(/content-type: application\/json/i)) {
-                                var text = JSON.parse(res.responseText);
-                                if (text.result) {
-                                    if (text.result == 'found') {
-                                        msg = "НП найден в таблице. Строка " + text.line;
-                                    }
-                                    else if (text.result == 'add') {
-                                        msg = "НП успешно добавлен в таблицу.";
-                                    }
-                                }
-                            }
-                            alert(msg);
-                        },
-                        onreadystatechange: function(res) {
-                            setButtonClass(buttonID, 'fa fa-spinner fa-pulse');
-                        },
-                        ontimeout: function(res) {
-                            alert("Sorry, request timeout!");
-                            setButtonClass(buttonID, 'fa fa-save');
-                        },
-                        onerror: function(res) {
-                            alert("Sorry, request error!");
-                            setButtonClass(buttonID, 'fa fa-save');
-                        }
-                    });
+                if (segInfo.cityName && segInfo.date && segInfo.cityID && segInfo.permalink) {
+                    var permalink = encodeURIComponent(segInfo.permalink);
+                    var url = cfg.apiUrl + '?func=saveLevel5&p1=' + user + '&p2=' + segInfo.cityName + '&p3=' + permalink + '&p4=' + segInfo.date + '&p5=' + segInfo.cityID + '&p6=' + segInfo.stateID;
+                    sendHTTPRequest(url, 'achSaveLevel5', 'fa fa-save', requestCallback);
                 }
                 else {
-                    log("Can't send saveLevel5 request. Some required fields are empty");
+                    alert('Не могу отправить запрос сохранения - некоторые нужные поля пустые!');
                 }
             }
         }
 
         function onLockRequest() {
+            function requestCallback(res) {
+                if (validateHTTPResponse(res)) {
+                    var text = JSON.parse(res.responseText);
+                    if (text.result == 'success') {
+                        setRequestStatus('locked');
+                        document.getElementById('achLockRequest').disabled = true;
+                    }
+                    else {
+                        alert(text.result);
+                    }
+                }
+            }
             var user = Waze.loginManager.user.userName;
-            var buttonID = 'achLockRequest';
             var cfg = config[Waze.model.countries.top.abbr];
 
             if (curRequest.row && cfg) {
-                GM_xmlhttpRequest({
-                    url: cfg.apiUrl + '?func=processRequest&row=' + curRequest.row + '&user=' + user + '&action=lock',
-                    method: 'GET',
-                    timeout: requestsTimeout,
-                    onload: function(res) {
-                        setButtonClass(buttonID, 'fa fa-lock');
-                        if (res.status === 200 && res.responseHeaders.match(/content-type: application\/json/i)) {
-                            var text = JSON.parse(res.responseText);
-                            if (text.result == 'success') {
-                                setRequestStatus('locked');
-                                document.getElementById('achLockRequest').disabled = true;
-                            }
-                            else {
-                                alert(text.result);
-                            }
-                        }
-                        else {
-                            alert("Error processing request. Response: " + res.responseText);
-                        }
-                    },
-                    onreadystatechange: function(res) {
-                        setButtonClass(buttonID, 'fa fa-spinner fa-pulse');
-                    },
-                    ontimeout: function(res) {
-                        alert("Sorry, request timeout!");
-                        setButtonClass(buttonID, 'fa fa-lock');
-                    },
-                    onerror: function(res) {
-                        alert("Sorry, request error!");
-                        setButtonClass(buttonID, 'fa fa-lock');
-                    }
-                });
+                var url = cfg.apiUrl + '?func=processRequest&row=' + curRequest.row + '&user=' + user + '&action=lock';
+                sendHTTPRequest(url, 'achLockRequest', 'fa fa-lock', requestCallback);
             }
         }
 
         function onCheckMinRegion() {
-            var buttonID = 'achCheckInMinRegion';
-            var tempUrl = 'http://localhost:8080/GetSuggestedCityName';
+            function requestCallback(res) {
+                if (validateHTTPResponse(res)) {
+                    var text = JSON.parse(res.responseText);
+                    if (!text.version || parseInt(text.version) < minAnalyzerVersion) {
+                        alert("Ваша версия анализатора для МинРегиона устарела. Пожалуйста, скачайте новую!");
+                        updateMinRegionInfo(emptyResponse);
+                    }
+                    updateMinRegionInfo(text);
+                }
+            }
+
             var emptyResponse = {};
             var lnk;
 
@@ -597,207 +620,167 @@
             }
 
             if (lnk) {
-                GM_xmlhttpRequest({
-                    url: tempUrl + '?lon=' + lnk.lon + '&lat=' + lnk.lat,
-                    method: 'GET',
-                    timeout: requestsTimeout,
-                    onload: function(res) {
-                        setButtonClass(buttonID, 'fa fa-map-o');
-                        if (res.status === 200 && res.responseHeaders.match(/content-type: application\/json/i)) {
-                            var text = JSON.parse(res.responseText);
-                            if (!text.version || parseInt(text.version) < minAnalyzerVersion) {
-                                alert("Ваша версия анализатора для МинРегиона устарела. Пожалуйста, скачайте новую!");
-                                updateMinRegionInfo(emptyResponse);
-                            }
-                            updateMinRegionInfo(text);
-                        }
-                        else {
-                            alert("Error processing request. Response: " + res.responseText);
-                            updateMinRegionInfo(emptyResponse);
-                        }
-                    },
-                    onreadystatechange: function(res) {
-                        setButtonClass(buttonID, 'fa fa-spinner fa-pulse');
-                    },
-                    ontimeout: function(res) {
-                        alert("Sorry, request timeout!");
-                        setButtonClass(buttonID, 'fa fa-map-o');
-                        updateMinRegionInfo(emptyResponse);
-                    },
-                    onerror: function(res) {
-                        alert("Sorry, request error!");
-                        setButtonClass(buttonID, 'fa fa-map-o');
-                        updateMinRegionInfo(emptyResponse);
-                    }
-                });
+                updateMinRegionInfo(emptyResponse);
+
+                var url = 'http://localhost:8080/GetSuggestedCityName' + '?lon=' + lnk.lon + '&lat=' + lnk.lat;
+                sendHTTPRequest(url, 'achCheckInMinRegion', 'fa fa-map-o', requestCallback);
             }
         }
 
         function onApproveRequest() {
+            function requestCallback(res) {
+                if (validateHTTPResponse(res)) {
+                    var text = JSON.parse(res.responseText);
+                    if (text.result == 'success') {
+                        setRequestStatus('approved');
+                    }
+                    else {
+                        alert(text.result);
+                    }
+                }
+            }
             var user = Waze.loginManager.user.userName;
-            var buttonID = 'achApproveRequest';
             var cfg = config[Waze.model.countries.top.abbr];
 
             if (curRequest.row && cfg) {
-                var selectedItem = Waze.selectionManager.selectedItems[0].model;
-                if (selectedItem.type === "segment") {
-                    var err = false;
-                    if (!selectedItem.attributes.primaryStreetID) {
-                        err = true;
-                    }
-                    else {
-                        var street = Waze.model.streets.objects[selectedItem.attributes.primaryStreetID];
-                        debugger;
-                        var city = Waze.model.cities.objects[street.cityID];
-                        curRequest.addedcity = city.attributes.name;
-                        if (!curRequest.addedcity) {
-                            err = true;
-                        }
-                    }
+                var segInfo = getSegmentInfo();
 
-                    if (err) {
-                        alert("Ошибка: сегмент без названия. Вы забыли присвоить сегменту НП?");
-                        return;
-                    }
+                if (!(segInfo.streetID && segInfo.cityName)) {
+                    alert("Ошибка: сегмент без названия. Возможно Вы забыли присвоить сегменту НП?");
+                    return;
                 }
-
-                curRequest.note = prompt('Обработанный НП: ' + curRequest.addedcity + '\nОдобрить запрос? Добавьте комментарий, если необходимо.', '');
+                curRequest.addedcity = segInfo.cityName;
+                curRequest.note = prompt('Обработанный НП: ' + curRequest.addedcity +
+                    (segInfo.stateID != 1 ? '\nРегион (штат): ' + segInfo.stateName : '') +
+                    '\nОдобрить запрос? Добавьте комментарий, если необходимо.', '');
 
                 if (curRequest.note !== null) {
-                    GM_xmlhttpRequest({
-                        url: cfg.apiUrl + '?func=processRequest&row=' + curRequest.row + '&user=' + user + '&addedcity=' + curRequest.addedcity + '&action=approve&note=' + curRequest.note,
-                        method: 'GET',
-                        timeout: requestsTimeout,
-                        onload: function(res) {
-                            setButtonClass(buttonID, 'fa fa-thumbs-up');
-                            if (res.status === 200 && res.responseHeaders.match(/content-type: application\/json/i)) {
-                                var text = JSON.parse(res.responseText);
-                                if (text.result == 'success') {
-                                    setRequestStatus('approved');
-                                }
-                                else {
-                                    alert(text.result);
-                                }
-                            }
-                            else {
-                                alert("Error processing request. Response: " + res.responseText);
-                            }
-                        },
-                        onreadystatechange: function(res) {
-                            setButtonClass(buttonID, 'fa fa-spinner fa-pulse');
-                        },
-                        ontimeout: function(res) {
-                            alert("Sorry, request timeout!");
-                            setButtonClass(buttonID, 'fa fa-thumbs-up');
-                        },
-                        onerror: function(res) {
-                            alert("Sorry, request error!");
-                            setButtonClass(buttonID, 'fa fa-thumbs-up');
-                        }
-                    });
+                    var url = cfg.apiUrl + '?func=processRequest&row=' + curRequest.row + '&user=' + user + '&addedcity=' + curRequest.addedcity + '&action=approve' + '&stateid=' + segInfo.stateID + '&note=' + curRequest.note;
+                    sendHTTPRequest(url, 'achApproveRequest', 'fa fa-thumbs-up', requestCallback);
                 }
             }
         }
 
         function onDeclineRequest() {
+            function requestCallback(res) {
+                if (validateHTTPResponse(res)) {
+                    var text = JSON.parse(res.responseText);
+                    if (text.result == 'success') {
+                        setRequestStatus('declined');
+                    }
+                    else {
+                        alert(text.result);
+                    }
+                }
+            }
             var user = Waze.loginManager.user.userName;
-            var buttonID = 'achDeclineRequest';
             var cfg = config[Waze.model.countries.top.abbr];
 
             if (curRequest.row && cfg) {
-                var selectedItem = Waze.selectionManager.selectedItems[0].model;
-                if (selectedItem.type === "segment" && selectedItem.attributes.primaryStreetID) {
-                    var street = Waze.model.streets.objects[selectedItem.attributes.primaryStreetID];
-                    if (street.cityID) {
-                        var city = Waze.model.cities.objects[street.cityID];
-                        curRequest.addedcity = city.attributes.name;
-                    }
-                }
+                var segInfo = getSegmentInfo();
 
+                curRequest.addedcity = segInfo.cityName;
                 curRequest.note = prompt('Причина отказа?', 'Такой НП уже существует.');
 
                 if (curRequest.note !== null) {
-                    GM_xmlhttpRequest({
-                        url: cfg.apiUrl + '?func=processRequest&row=' + curRequest.row + '&user=' + user + '&addedcity=' + curRequest.addedcity + '&action=decline&note=' + curRequest.note,
-                        method: 'GET',
-                        timeout: requestsTimeout,
-                        onload: function(res) {
-                            setButtonClass(buttonID, 'fa fa-thumbs-down');
-                            if (res.status === 200 && res.responseHeaders.match(/content-type: application\/json/i)) {
-                                var text = JSON.parse(res.responseText);
-                                if (text.result == 'success') {
-                                    setRequestStatus('declined');
-                                }
-                                else {
-                                    alert(text.result);
-                                }
-                            }
-                            else {
-                                alert("Error processing request. Response: " + res.responseText);
-                            }
-                        },
-                        onreadystatechange: function(res) {
-                            setButtonClass(buttonID, 'fa fa-spinner fa-pulse');
-                        },
-                        ontimeout: function(res) {
-                            alert("Sorry, request timeout!");
-                            setButtonClass(buttonID, 'fa fa-thumbs-down');
-                        },
-                        onerror: function(res) {
-                            alert("Sorry, request error!");
-                            setButtonClass(buttonID, 'fa fa-thumbs-down');
-                        }
-                    });
+                    var url = cfg.apiUrl + '?func=processRequest&row=' + curRequest.row + '&user=' + user + '&addedcity=' + curRequest.addedcity + '&action=decline' + '&stateid=' + segInfo.stateID + '&note=' + curRequest.note;
+                    sendHTTPRequest(url, 'achDeclineRequest', 'fa fa-thumbs-down', requestCallback);
                 }
             }
         }
 
         function onSendEmail() {
-            var buttonID = 'achSendEmail';
+            function requestCallback(res) {
+                if (validateHTTPResponse(res)) {
+                    var text = JSON.parse(res.responseText);
+                    if (text.result == 'success') {
+                        setRequestStatus(curRequest.status + ", emailed");
+                        //alert("Письмо успешно отправлено!");
+                        // update counter
+                        getRequestsCount();
+                    }
+                    else {
+                        alert(text.result);
+                    }
+                }
+            }
+
             var cfg = config[Waze.model.countries.top.abbr];
 
             if (curRequest.row && cfg) {
-                GM_xmlhttpRequest({
-                    url: cfg.apiUrl + '?func=sendEmail&row=' + curRequest.row,
-                    method: 'GET',
-                    timeout: requestsTimeout,
-                    onload: function(res) {
-                        setButtonClass(buttonID, 'fa fa-envelope-o');
-                        if (res.status === 200 && res.responseHeaders.match(/content-type: application\/json/i)) {
-                            var text = JSON.parse(res.responseText);
-                            if (text.result == 'success') {
-                                setRequestStatus(curRequest.status + ", emailed");
-                                alert("Письмо успешно отправлено!");
-                                // update counter
-                                getRequestsCount();
-                            }
-                            else {
-                                alert(text.result);
-                            }
-                        }
-                        else {
-                            alert("Error processing request. Response: " + res.responseText);
-                        }
-                    },
-                    onreadystatechange: function(res) {
-                        setButtonClass(buttonID, 'fa fa-spinner fa-pulse');
-                    },
-                    ontimeout: function(res) {
-                        alert("Sorry, request timeout!");
-                        setButtonClass(buttonID, 'fa fa-envelope-o');
-                    },
-                    onerror: function(res) {
-                        alert("Sorry, request error!");
-                        setButtonClass(buttonID, 'fa fa-envelope-o');
-                    }
-                });
+                var url = cfg.apiUrl + '?func=sendEmail&row=' + curRequest.row;
+                sendHTTPRequest(url, 'achSendEmail', 'fa fa-envelope-o', requestCallback);
             }
+        }
+
+        function onSkipRequest() {
+            var cfg = config[Waze.model.countries.top.abbr];
+
+            if (cfg) {
+                getCityRequest(curRequest.row ? curRequest.row : null, 'achSkipRequest', 'fa fa-forward');
+            }
+        }
+
+        function sendHTTPRequest(url, buttonID, btnClass, callback) {
+            setButtonClass(buttonID, 'fa fa-spinner fa-pulse'); // to make ViolentMonkey happy
+            GM_xmlhttpRequest({
+                url: url,
+                method: 'GET',
+                timeout: requestsTimeout,
+                onload: function(res) {
+                    setButtonClass(buttonID, btnClass);
+                    callback(res);
+                },
+                onreadystatechange: function(res) {
+                    setButtonClass(buttonID, 'fa fa-spinner fa-pulse');
+                },
+                ontimeout: function(res) {
+                    setButtonClass(buttonID, btnClass);
+                    alert("Sorry, request timeout!");
+                },
+                onerror: function(res) {
+                    setButtonClass(buttonID, btnClass);
+                    alert("Sorry, request error!");
+                }
+            });
+        }
+
+        function validateHTTPResponse(res) {
+            var result = false, displayError = true;
+            if (res) {
+                switch (res.status) {
+                    case 200:
+                        displayError = false;
+                        if (res.responseHeaders.match(/content-type: application\/json/i)) {
+                            result = true;
+                        }
+                        else if (res.responseHeaders.match(/content-type: text\/html/i)) {
+                            displayHtmlPage(res);
+                        }
+                        break;
+                    default:
+                        displayError = false;
+                        alert("Error: unsupported status code - " + res.status);
+                        log(res.responseHeaders);
+                        log(res.responseText);
+                        break;
+                }
+            }
+            else {
+                displayError = false;
+                alert("Error: Response is empty!");
+            }
+
+            if (displayError) {
+                alert("Error processing request. Response: " + res.responseText);
+            }
+            return result;
         }
 
         function updateMinRegionInfo(rs) {
             var disableButtons = true;
 
-            if (rs.foundcity) {
+            if (rs && rs.foundcity) {
                 disableButtons = false;
                 document.getElementById('achFoundCity').value = rs.foundcity;
                 document.getElementById('achSuggestedName').value = rs.suggestedcity;
@@ -812,10 +795,15 @@
                 drawCityBorder(null, null);
             }
 
-            document.getElementById('achMRResponseStatus').style.color = (rs.status == 'OK' ? 'green' : (rs.status.match(/error/i) ? 'red' : 'darkorange'));
-            document.getElementById('achMRResponseStatus').innerHTML = rs.status.replace(',', '</br>');
-            document.getElementById('achMRResponseComments').innerHTML = rs.comments.replace(',', '</br>');
-
+            if (rs && rs.status) {
+                document.getElementById('achMRResponseStatus').style.color = (rs.status == 'OK' ? 'green' : (rs.status.match(/error/i) ? 'red' : 'darkorange'));
+                document.getElementById('achMRResponseStatus').innerHTML = rs.status.replace(',', '</br>');
+                document.getElementById('achMRResponseComments').innerHTML = rs.comments.replace(',', '</br>');
+            }
+            else {
+                document.getElementById('achMRResponseStatus').innerHTML = '';
+                document.getElementById('achMRResponseComments').innerHTML = '';
+            }
 
             document.getElementById('achApplyFoundCity').disabled = disableButtons;
             document.getElementById('achApplySuggestedCity').disabled = disableButtons;
@@ -823,6 +811,9 @@
 
         function processGetResult(rq) {
             if (rq && rq.city) {
+
+                GM_setClipboard(rq.city);
+
                 curRequest.author = rq.requestor;
                 curRequest.requestedcity = rq.city;
                 curRequest.permalink = rq.permalink;
@@ -908,65 +899,91 @@
             return link;
         }
 
-        function updateInProgressIndicator() {
-            if (isRequestActive) {
-                document.getElementById('achSpinner').style.display = "inline-block";
+        function getSegmentInfo() {
+            var segInfo = {};
+
+            var selectedItem = Waze.selectionManager.selectedItems[0];
+            if (selectedItem && selectedItem.model.type === "segment") {
+                var attr = selectedItem.model.attributes;
+                if (attr) {
+                    // 1
+                    segInfo.id = attr.id;
+
+                    if (attr.primaryStreetID) {
+                        var street = Waze.model.streets.get(attr.primaryStreetID);
+                        // 2
+                        segInfo.streetID = attr.primaryStreetID;
+                        // 3
+                        segInfo.streetName = street.name;
+                        if (street.cityID) {
+                            // 4
+                            segInfo.cityID = street.cityID;
+                            var city = Waze.model.cities.get(street.cityID);
+                            // 5
+                            segInfo.cityName = city.attributes.name;
+
+                            if (city.attributes.stateID) {
+                                // 6
+                                segInfo.stateID = city.attributes.stateID;
+                                var state = Waze.model.states.get(city.attributes.stateID);
+                                // 7
+                                segInfo.stateName = state.name;
+                            }
+                        }
+                    }
+                    // 8
+                    var attrDate = attr.updatedOn ? attr.updatedOn : attr.createdOn;
+                    segInfo.date = new Date(attrDate).toISOString();
+
+                    // generate permalink
+                    var centroid = selectedItem.geometry.getCentroid(true); // without "true" it will return start point as a centroid
+                    var lnk = OpenLayers.Layer.SphericalMercator.inverseMercator(centroid.x, centroid.y);
+                    // 9
+                    segInfo.permalink = location.origin + location.pathname + "?env=row&lon=" + lnk.lon + "&lat=" + lnk.lat + "&zoom=4&segments=" + attr.id;
+                }
             }
-            else {
-                document.getElementById('achSpinner').style.display = "none";
-            }
+
+            return segInfo;
         }
 
-        function getCityRequest() {
+        function getCityRequest(row, btnID, btnClass) {
+            function requestCallback(res) {
+                var count = "error";
+                if (validateHTTPResponse(res, getCityRequest)) {
+                    var text = JSON.parse(res.responseText);
+                    count = text.count;
+                    if (text.result == 'success') {
+                        setRequestStatus(text.status);
+                        processGetResult(text);
+                    }
+                    else if (text.result == 'nothing to process') {
+                        alert("Нет доступных запросов для обработки.");
+                        // set request to empty
+                        processGetResult();
+                    }
+                    else {
+                        alert(text.result);
+                        // set request to empty
+                        processGetResult();
+                    }
+                }
+                updateRequestsCount(count);
+            }
+
             var cfg = config[Waze.model.countries.top.abbr];
             if (cfg) {
                 var user = Waze.loginManager.user.userName;
-                isRequestActive = true;
-                GM_xmlhttpRequest({
-                    url: cfg.apiUrl + '?func=getCityRequest&user=' + user,
-                    method: 'GET',
-                    timeout: requestsTimeout,
-                    onload: function(res) {
-                        var count = "error";
-                        isRequestActive = false;
-                        updateInProgressIndicator();
-                        if (res.status === 200 && res.responseHeaders.match(/content-type: application\/json/i)) {
-                            var text = JSON.parse(res.responseText);
-                            count = text.count;
-                            if (text.result == 'success') {
-                                setRequestStatus(text.status);
-                                processGetResult(text);
-                            }
-                            else if (text.result == 'nothing to process') {
-                                alert("Нет доступных запросов для обработки.");
-                                // set request to empty
-                                processGetResult();
-                            }
-                            else {
-                                alert(text.result);
-                                // set request to empty
-                                processGetResult();
-                            }
-                        }
-                        else {
-                            alert("Error loading city. Response: " + res.responseText);
-                        }
-                        updateRequestsCount(count);
-                    },
-                    onreadystatechange: function(res) {
-                        updateInProgressIndicator();
-                    },
-                    ontimeout: function(res) {
-                        alert("Sorry, request timeout!");
-                        isRequestActive = false;
-                        updateInProgressIndicator();
-                    },
-                    onerror: function(res) {
-                        alert("Sorry, request error!");
-                        isRequestActive = false;
-                        updateInProgressIndicator();
-                    }
-                });
+
+                var url = cfg.apiUrl + '?func=getCityRequest&user=' + user;
+                if (row) {
+                    url = url + '&row=' + row;
+                }
+                if (btnID && btnClass) {
+                    sendHTTPRequest(url, btnID, btnClass, requestCallback);
+                }
+                else {
+                    sendHTTPRequest(url, 'achCountContainer', '', requestCallback);
+                }
             }
         }
 
@@ -990,36 +1007,23 @@
 
             $('#achCountContainer').css('background-color', bgColor);
             $('#achCount').css('color', textColor).html('Запросы НП: ' + count);
+            $('#achSpinner').css('color', textColor);
         }
 
         function getRequestsCount() {
+            function requestCallback(res) {
+                var count = "error";
+                if (validateHTTPResponse(res, getRequestsCount)) {
+                    var text = JSON.parse(res.responseText);
+                    count = text.count;
+                }
+                updateRequestsCount(count);
+            }
+
             var cfg = config[Waze.model.countries.top.abbr];
             if (cfg) {
-                GM_xmlhttpRequest({
-                    url: cfg.apiUrl + '?func=getRequestsCount',
-                    method: 'GET',
-                    timeout: requestsTimeout,
-                    onload: function(res) {
-                        var count = "error";
-                        if (res.status === 200 && res.responseHeaders.match(/content-type: application\/json/i)) {
-                            var text = JSON.parse(res.responseText);
-                            count = text.count;
-                        }
-                        else if (res.responseHeaders.match(/content-type: text\/html/i)) {
-                            displayHtmlPage(res);
-                        }
-                        else {
-                            alert("Error loading requests count. Response: " + res.responseText + res.responseHeaders);
-                        }
-                        updateRequestsCount(count);
-                    },
-                    ontimeout: function(res) {
-                        alert("Sorry, request timeout!");
-                    },
-                    onerror: function(res) {
-                        alert("Sorry, request error!");
-                    }
-                });
+                var url = cfg.apiUrl + '?func=getRequestsCount';
+                sendHTTPRequest(url, null, null, requestCallback);
             }
         }
 

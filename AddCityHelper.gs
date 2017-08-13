@@ -1,6 +1,6 @@
 // ==AppsScript==
 // @name         Add City Helper
-// @version      0.2.1
+// @version      0.2.2
 // @description  API for processing requests directly from WME
 // @author       madnut
 // @email        madnut.ua@gmail.com
@@ -30,15 +30,11 @@ var aIndex = {
 };
 
 function doGet(e) {
-  /*
-  https://script.google.com/macros/s/AKfycby2OUnHmGkbTNeJDBcXu4zZ6eyNngh6XHpkcU_tsoVSmHn-NzY/exec?func=Test&p1=Test2
-   */
-
   var funcName = e.parameter.func;
   var resultString = {};
 
   if (!funcName) {
-    // compatibility with WME Requests (Save L5)
+    // compatibility with old WME Requests (Save L5)
     return sendLevel5(e);
   }
 
@@ -47,10 +43,10 @@ function doGet(e) {
     resultString = getRequestsCount();
     break;
   case "getCityRequest":
-    resultString = getCityRequest(e.parameter.user);
+    resultString = getCityRequest(e.parameter.user, e.parameter.row);
     break;
   case "processRequest":
-    resultString = processRequest(e.parameter.row, e.parameter.user, e.parameter.action, e.parameter.note, e.parameter.addedcity);
+    resultString = processRequest(e.parameter.row, e.parameter.user, e.parameter.action, e.parameter.note, e.parameter.addedcity, e.parameter.stateid);
     break;
   case "sendEmail":
     resultString = sendEmail(e.parameter.row);
@@ -163,12 +159,22 @@ function getRequestsCount() {
   };
 }
 
-function getCityRequest(user) {
+function getCityRequest(user, row) {
   var res = _getActiveRequests();
   if (res.result == "success") {
     for (var x = 0; x < res.values.length; x++) {
+      
       var who = res.values[x][aIndex.author];
       if (!who || (user && user == who.replace("lock:", ""))) {
+        // skip functionality
+        if (row && res.values[x][aIndex.row] == row) {
+          row = -1;
+          if (x >= (res.values.length - 1)) {
+            x = -1;
+          } 
+          continue;
+        }
+        
         return {
           "result": res.result,
           "city": res.values[x][aIndex.city],
@@ -181,6 +187,11 @@ function getCityRequest(user) {
           "count": res.values.length
         };
       }
+      
+      if (row == -1 && x >= (res.values.length - 1)) {
+          x = -1;
+          row = null;
+      }      
     }
     return {
       "result": "nothing to process",
@@ -194,7 +205,7 @@ function getCityRequest(user) {
   }
 }
 
-function processRequest(row, user, action, note, addedcity) {
+function processRequest(row, user, action, note, addedcity, stateid) {
   if (!(row && user && action)) {
     return {
       "result": "error: row, user or action are not specified"
@@ -264,6 +275,9 @@ function processRequest(row, user, action, note, addedcity) {
           note = addedcity + (note ? (" - " + note) : '');
         } else {
           range = foundSheet.getRange(cid.addedcity + row).setValue(addedcity);
+        }
+        if (stateid && stateid != "1") {
+          range = foundSheet.getRange(cid.stateid + row).setValue(stateid);
         }
         range = foundSheet.getRange(cid.outmsg + row).setValue(note);
         arr = range.getValues();
