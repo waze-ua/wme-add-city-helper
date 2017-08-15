@@ -1,13 +1,13 @@
 // ==UserScript==
 // @name         WME Add City Helper
 // @namespace    madnut.ua@gmail.com
-// @version      0.5.1
+// @version      0.5.2
 // @description  Helps to add cities using WME Requests spreadsheet
 // @author       madnut
-// @include      https://www.waze.com/editor/*
-// @include      https://www.waze.com/*/editor/*
-// @include      https://editor-beta.waze.com/editor/*
-// @include      https://editor-beta.waze.com/*/editor/*
+// @include      https://www.waze.com/editor*
+// @include      https://www.waze.com/*/editor*
+// @include      https://editor-beta.waze.com/editor*
+// @include      https://editor-beta.waze.com/*/editor*
 // @connect      google.com
 // @connect      script.googleusercontent.com
 // @connect      localhost
@@ -219,6 +219,7 @@
                             // end 0
                             // block 1
                             '<div class="form-group">' +
+                            '<div style="float:right; z-index:100; cursor:pointer; top:0; right:0;" id="achClearRequest" title="Очистить данные о запросе"><i class="fa fa-times-circle fa-lg" aria-hidden="true"></i></div>' +
                             '<label class="control-label">Текущий запрос НП</label>' +
                             // city
                             '<div class="controls input-group">' +
@@ -290,7 +291,7 @@
                             '<button id="achSkipRequest" class="btn btn-warning" type="button" title="Перейти к следующему запросу" style="font-size: 16px; padding: 6px 16px;">' +
                             '<i class="fa fa-forward"></i>' +
                             '</button>' +
-                             // goto table cell
+                            // goto table cell
                             '<button id="achGotoTableCell" class="btn-link" type="button" title="Перейти к запросу в таблице" style="">' +
                             '<i class="fa fa-external-link"></i>&nbsp;Перейти к запросу в таблице' +
                             '</button>' +
@@ -379,6 +380,11 @@
                     document.getElementById('achCopyStateID').onclick = function() {
                         GM_setClipboard(document.getElementById('achStateID').innerHTML);
                     };
+                    document.getElementById('achClearRequest').onclick = function() {
+                        curRequest = {};
+                        updateRequestInfo();
+                        updateRequestStatus();
+                    };
                     document.getElementById('achJumpToRequest').onclick = function() {
                         if (curRequest.permalink) {
                             jumpToLink(curRequest.permalink);
@@ -427,22 +433,7 @@
             }
 
             if (document.getElementById(panelID) !== null) {
-                if (curRequest.requestedcity) {
-                    document.getElementById('achAuthor').innerHTML = curRequest.author;
-                    document.getElementById('achRequestedCity').value = curRequest.requestedcity;
-                    document.getElementById('achJumpToRequest').disabled = false;
-                    document.getElementById('achApplyRequestedCity').disabled = false;
-
-                    document.getElementById("achTab").click();
-                }
-                else {
-                    document.getElementById('achAuthor').innerHTML = "N/A";
-                    document.getElementById('achRequestedCity').value = "N/A";
-                    document.getElementById('achJumpToRequest').disabled = true;
-                    document.getElementById('achApplyRequestedCity').disabled = true;
-                    document.getElementById('achGotoTableCell').disabled = true;
-                }
-
+                updateRequestInfo();
                 updateRequestStatus();
 
                 //Ukraine
@@ -465,6 +456,24 @@
         function setRequestStatus(statusText) {
             curRequest.status = statusText ? statusText : '';
             updateRequestStatus();
+        }
+
+        function updateRequestInfo() {
+            if (curRequest.requestedcity) {
+                document.getElementById('achAuthor').innerHTML = curRequest.author;
+                document.getElementById('achRequestedCity').value = curRequest.requestedcity;
+                document.getElementById('achJumpToRequest').disabled = false;
+                document.getElementById('achApplyRequestedCity').disabled = false;
+
+                document.getElementById("achTab").click();
+            }
+            else {
+                document.getElementById('achAuthor').innerHTML = "N/A";
+                document.getElementById('achRequestedCity').value = "N/A";
+                document.getElementById('achJumpToRequest').disabled = true;
+                document.getElementById('achApplyRequestedCity').disabled = true;
+                document.getElementById('achGotoTableCell').disabled = true;
+            }
         }
 
         function updateRequestStatus() {
@@ -651,8 +660,8 @@
                 }
                 curRequest.addedcity = segInfo.cityName;
                 curRequest.note = prompt('Обработанный НП: ' + curRequest.addedcity +
-                    (segInfo.stateID != 1 ? '\nРегион (штат): ' + segInfo.stateName : '') +
-                    '\nОдобрить запрос? Добавьте комментарий, если необходимо.', '');
+                                         (segInfo.stateID != 1 ? '\nРегион (штат): ' + segInfo.stateName : '') +
+                                         '\nОдобрить запрос? Добавьте комментарий, если необходимо.', '');
 
                 if (curRequest.note !== null) {
                     var url = cfg.apiUrl + '?func=processRequest&row=' + curRequest.row + '&user=' + user + '&addedcity=' + curRequest.addedcity + '&action=approve' + '&stateid=' + segInfo.stateID + '&note=' + curRequest.note;
@@ -1109,7 +1118,11 @@
                         var state = $(getEditFormControlName('state'));
                         if (state && curRequest.statecode && state.val() && (state.val() != curRequest.statecode))
                         {
-                            state.val(curRequest.statecode).change();
+                            state.each(function() {
+                                if (this.value == curRequest.statecode) {
+                                    state.val(curRequest.statecode).change();
+                                }
+                            });
                         }
                         var country = $(getEditFormControlName('country'));
                         if (curRequest.countrycode && country.val() != curRequest.countrycode)
