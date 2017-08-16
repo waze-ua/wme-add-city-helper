@@ -1,13 +1,11 @@
 // ==UserScript==
 // @name         WME Add City Helper
 // @namespace    madnut.ua@gmail.com
-// @version      0.5.2
+// @version      0.5.3
 // @description  Helps to add cities using WME Requests spreadsheet
 // @author       madnut
-// @include      https://www.waze.com/editor*
-// @include      https://www.waze.com/*/editor*
-// @include      https://editor-beta.waze.com/editor*
-// @include      https://editor-beta.waze.com/*/editor*
+// @include      https://*waze.com/*editor*
+// @exclude      https://*waze.com/*user/editor*
 // @connect      google.com
 // @connect      script.googleusercontent.com
 // @connect      localhost
@@ -473,6 +471,8 @@
                 document.getElementById('achJumpToRequest').disabled = true;
                 document.getElementById('achApplyRequestedCity').disabled = true;
                 document.getElementById('achGotoTableCell').disabled = true;
+
+                drawCityBorder(null, null);
             }
         }
 
@@ -942,7 +942,9 @@
                     }
                     // 8
                     var attrDate = attr.updatedOn ? attr.updatedOn : attr.createdOn;
-                    segInfo.date = new Date(attrDate).toISOString();
+                    if (attrDate) {
+                        segInfo.date = new Date(attrDate).toISOString();
+                    }
 
                     // generate permalink
                     var centroid = selectedItem.geometry.getCentroid(true); // without "true" it will return start point as a centroid
