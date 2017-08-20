@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WME Add City Helper
 // @namespace    madnut.ua@gmail.com
-// @version      0.5.3
+// @version      0.5.4
 // @description  Helps to add cities using WME Requests spreadsheet
 // @author       madnut
 // @include      https://*waze.com/*editor*
@@ -250,20 +250,6 @@
                             '<span id="achStatus" style="font-weight: bold;">N/A</span>' +
                             '</div>' +
                             '</div>' +
-                            // author
-                            //'<div class="form-group">' +
-                            //'<label class="control-label">Автор</label>' +
-                            //'<div class="controls">' +
-                            //'<input class="form-control" autocomplete="off" maxlength="100" id="achAuthor" name="" title="Автор запроса" type="text" value="N/A" readonly="readonly" />' +
-                            //'</div>' +
-                            //'</div>' +
-                            // status
-                            //'<div class="form-group">' +
-                            //'<label class="control-label">Статус</label>' +
-                            //'<div class="controls">' +
-                            //'<input class="form-control" autocomplete="off" maxlength="100" id="achStatus" name="" title="Статус запроса" type="text" value="N/A" readonly="readonly" />' +
-                            //'</div>' +
-                            //'</div>' +
                             // actions
                             '<div class="form-group">' +
                             '<label class="control-label">Действия с запросом</label>' +
@@ -274,9 +260,20 @@
                             '<i class="fa fa-lock"></i>' +
                             '</button>' +
                             // approve
-                            '<button id="achApproveRequest" class="btn btn-success" type="button" title="Одобрить запрос" style="font-size: 16px; padding: 6px 16px;">' +
+                            '<div class="btn-group">' +
+                            '<button id="achApproveRequest" class="btn btn-success" type="button" title="Одобрить запрос" style="font-size: 16px; padding: 6px 14px;">' +
                             '<i class="fa fa-thumbs-up"></i>' +
                             '</button>' +
+                            '<button id="achApproveRequestDd" type="button" class="btn btn-success dropdown-toggle" data-toggle="dropdown" style="padding: 6px;">' +
+                            '<span class="caret"></span>' +
+                            '</button>' +
+                            '<ul class="dropdown-menu" role="menu">' +
+                            '<li><a id="achApproveWithComment" href="#"><i class="fa fa-plus"></i>&nbsp;Комментарий</a></li>' +
+                            '</ul>' +
+                            '</div>' +
+                            //'<button id="achApproveRequest" class="btn btn-success" type="button" title="Одобрить запрос" style="font-size: 16px; padding: 6px 16px;">' +
+                            //'<i class="fa fa-thumbs-up"></i>' +
+                            //'</button>' +
                             // decline
                             '<button id="achDeclineRequest" class="btn btn-danger" type="button" title="Отказать" style="font-size: 16px; padding: 6px 16px;">' +
                             '<i class="fa fa-thumbs-down"></i>' +
@@ -397,7 +394,15 @@
                         return false;
                     };
                     document.getElementById('achLockRequest').onclick = onLockRequest;
-                    document.getElementById('achApproveRequest').onclick = onApproveRequest;
+
+                    document.getElementById('achApproveRequest').onclick = function() {
+                        onApproveRequest(false);
+                    }
+                    document.getElementById('achApproveWithComment').onclick = function(e) {
+                        onApproveRequest(true);
+                        e.preventDefault();
+                    }
+
                     document.getElementById('achDeclineRequest').onclick = onDeclineRequest;
                     document.getElementById('achSendEmail').onclick = onSendEmail;
                     document.getElementById('achSkipRequest').onclick = onSkipRequest;
@@ -482,6 +487,7 @@
             if (inputStatus) {
                 var btn1 = document.getElementById('achLockRequest');
                 var btn2 = document.getElementById('achApproveRequest');
+                var btn22 = document.getElementById('achApproveRequestDd');
                 var btn3 = document.getElementById('achDeclineRequest');
                 var btn4 = document.getElementById('achSendEmail');
 
@@ -492,6 +498,7 @@
                     case 'active':
                         btn1.disabled = false;
                         btn2.disabled = false;
+                        btn22.disabled = false;
                         btn3.disabled = false;
                         btn4.disabled = true;
                         inputStatus.style.color = 'blue';
@@ -499,6 +506,7 @@
                     case 'locked':
                         btn1.disabled = true;
                         btn2.disabled = false;
+                        btn22.disabled = false;
                         btn3.disabled = false;
                         btn4.disabled = true;
                         inputStatus.style.color = '#a05fa5';
@@ -506,6 +514,7 @@
                     case 'approved':
                         btn1.disabled = true;
                         btn2.disabled = true;
+                        btn22.disabled = true;
                         btn3.disabled = true;
                         btn4.disabled = false;
                         inputStatus.style.color = '#62a25f';
@@ -513,6 +522,7 @@
                     case 'approved, emailed':
                         btn1.disabled = true;
                         btn2.disabled = true;
+                        btn22.disabled = true;
                         btn3.disabled = true;
                         btn4.disabled = true;
                         inputStatus.style.color = '#62a25f';
@@ -520,6 +530,7 @@
                     case 'declined':
                         btn1.disabled = true;
                         btn2.disabled = true;
+                        btn22.disabled = true;
                         btn3.disabled = true;
                         btn4.disabled = false;
                         inputStatus.style.color = '#e54444';
@@ -527,6 +538,7 @@
                     case 'declined, emailed':
                         btn1.disabled = true;
                         btn2.disabled = true;
+                        btn22.disabled = true;
                         btn3.disabled = true;
                         btn4.disabled = true;
                         inputStatus.style.color = '#e54444';
@@ -534,6 +546,7 @@
                     default:
                         btn1.disabled = true;
                         btn2.disabled = true;
+                        btn22.disabled = true;
                         btn3.disabled = true;
                         btn4.disabled = true;
                         inputStatus.style.color = 'black';
@@ -636,7 +649,7 @@
             }
         }
 
-        function onApproveRequest() {
+        function onApproveRequest(askForComment) {
             function requestCallback(res) {
                 if (validateHTTPResponse(res)) {
                     var text = JSON.parse(res.responseText);
@@ -659,9 +672,14 @@
                     return;
                 }
                 curRequest.addedcity = segInfo.cityName;
-                curRequest.note = prompt('Обработанный НП: ' + curRequest.addedcity +
-                                         (segInfo.stateID != 1 ? '\nРегион (штат): ' + segInfo.stateName : '') +
-                                         '\nОдобрить запрос? Добавьте комментарий, если необходимо.', '');
+                if (askForComment) {
+                    curRequest.note = prompt('Обработанный НП: ' + curRequest.addedcity +
+                                             (segInfo.stateID != 1 ? '\nРегион (штат): ' + segInfo.stateName : '') +
+                                             '\nОдобрить запрос? Добавьте комментарий, если необходимо.', '');
+                }
+                else {
+                    curRequest.note = '';
+                }
 
                 if (curRequest.note !== null) {
                     var url = cfg.apiUrl + '?func=processRequest&row=' + curRequest.row + '&user=' + user + '&addedcity=' + curRequest.addedcity + '&action=approve' + '&stateid=' + segInfo.stateID + '&note=' + curRequest.note;
