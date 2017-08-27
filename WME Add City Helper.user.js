@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WME Add City Helper
 // @namespace    madnut.ua@gmail.com
-// @version      0.5.4
+// @version      0.5.5
 // @description  Helps to add cities using WME Requests spreadsheet
 // @author       madnut
 // @include      https://*waze.com/*editor*
@@ -669,6 +669,10 @@
 
                 if (!(segInfo.streetID && segInfo.cityName)) {
                     alert("Ошибка: сегмент без названия. Возможно Вы забыли присвоить сегменту НП?");
+                    return;
+                }
+                if (Waze.model.actionManager.unsavedActionsNum() > 0) {
+                    alert("Похоже, что Вы забыли сохранить изменения в редакторе.\nСохраните перед одобрением запроса ;)");
                     return;
                 }
                 curRequest.addedcity = segInfo.cityName;
