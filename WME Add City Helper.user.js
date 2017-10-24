@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WME Add City Helper
 // @namespace    madnut.ua@gmail.com
-// @version      0.5.5
+// @version      0.5.6
 // @description  Helps to add cities using WME Requests spreadsheet
 // @author       madnut
 // @include      https://*waze.com/*editor*
@@ -153,7 +153,7 @@
             $outputElemContainer.append($spinnerElem);
             $outputElemContainer.append($outputElem);
 
-            $('.toolbar-button.waze-icon-place').parent().prepend($outputElemContainer);
+            $('#edit-buttons').children().first().append($outputElemContainer);
             $outputElem.tooltip({
                 placement: 'auto top',
                 delay: {show: 100, hide: 100},
@@ -1100,8 +1100,8 @@
                     citynamecheck: beta ? '#emptyCity' : '#emptyCity',
                     streetname: beta ? 'input[name="streetName"]' : 'input[name="streetName"]',
                     streetnamecheck: beta ? '#emptyStreet' : '#emptyStreet',
-                    save: beta ? 'class="btn btn-primary save-button"' : 'class="btn btn-primary save-button"',
-                    cancel: beta ? 'class="address-edit-cancel btn btn-default cancel-button"' : 'class="address-edit-cancel btn btn-default cancel-button"',
+                    save: beta ? 'class~="save-button"' : 'class~="save-button"',
+                    cancel: beta ? 'class~="address-edit-cancel"' : 'class="~address-edit-cancel"',
                     name: 'name'
                 };
 
