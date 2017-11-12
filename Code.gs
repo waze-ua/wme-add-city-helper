@@ -225,6 +225,10 @@ function setCityID(row) {
   var cityName = sheet.getRange(cid.addedcity + currRow).getValue();
 
   if (cityName && sheet.getRange(cid.result + currRow).getValue().trim() == "да") {
+    
+    // strip comment if we have some
+    cityName = cityName.split(':')[0].trim();
+    
     var id = getcityID(cityName);
     if (id) {
       sheet.getRange(cid.cityid + currRow).setValue(id);
@@ -241,6 +245,10 @@ function setAllCityID() {
     var cityName = sheet.getRange(cid.addedcity + i).getValue();
 
     if (cityName && !sheet.getRange(cid.cityid + i).getValue() && sheet.getRange(cid.result + i).getValue() == "да") {
+      
+      // strip comment if we have some
+      cityName = cityName.split(':')[0].trim();
+      
       var id = getcityID(cityName);
       if (id) {
         sheet.getRange(cid.cityid + i).setValue(id);

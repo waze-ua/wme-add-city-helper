@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WME Add City Helper
 // @namespace    madnut.ua@gmail.com
-// @version      0.5.6
+// @version      0.5.7
 // @description  Helps to add cities using WME Requests spreadsheet
 // @author       madnut
 // @include      https://*waze.com/*editor*
@@ -1071,9 +1071,9 @@
             w.document.open();
             w.document.write(res.responseText);
             w.document.close();
-            if (res.responseText.match(/ServiceLogin/)) {
+            //if (res.responseText.match(/ServiceLogin/)) {
                 w.location = res.finalUrl;
-            }
+            //}
         }
 
         function getElementsByClassName(classname, node) {

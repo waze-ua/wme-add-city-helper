@@ -1,6 +1,6 @@
 // ==AppsScript==
 // @name         Add City Helper
-// @version      0.2.2
+// @version      0.2.3
 // @description  API for processing requests directly from WME
 // @author       madnut
 // @email        madnut.ua@gmail.com
@@ -272,7 +272,7 @@ function processRequest(row, user, action, note, addedcity, stateid) {
         range = foundSheet.getRange(cid.solvernick + row).setValue(user);
         // for Ukraine & Russia we have the same column for city and for comment
         if ((countryID == "232" || countryID == "186") && action == "approve") {
-          note = addedcity + (note ? (" - " + note) : '');
+          note = addedcity + (note ? (" : " + note) : '');
         } else {
           range = foundSheet.getRange(cid.addedcity + row).setValue(addedcity);
         }
