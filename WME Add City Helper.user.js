@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WME Add City Helper
 // @namespace    madnut.ua@gmail.com
-// @version      0.5.7
+// @version      0.5.8
 // @description  Helps to add cities using WME Requests spreadsheet
 // @author       madnut
 // @include      https://*waze.com/*editor*
@@ -21,7 +21,7 @@
 
     var requestsTimeout = 20000; // in ms
     var minZoomLevel = 4;
-    var minAnalyzerVersion = 110; // Ukraine's MinRegion Analyzer
+    var minAnalyzerVersion = 120; // Ukraine's MinRegion Analyzer
     var config = {
         BO: {
             "country": "Беларусь",
@@ -65,6 +65,7 @@
             typeof Waze.map === "undefined" ||
             typeof Waze.selectionManager === "undefined" ||
             typeof Waze.model.countries === "undefined" ||
+            typeof Waze.model.countries.top === "undefined" ||
             typeof I18n === "undefined" ||
             typeof I18n.translations === "undefined") {
             setTimeout(ACHelper_bootstrap, 700);
@@ -420,14 +421,14 @@
                         document.getElementById('achApplyFoundCity').onclick = function() {
                             var cityName = document.getElementById('achFoundCity').value;
                             if (cityName !== '' && cityName !== 'N/A') {
-                                changeCity(cityName, true);
+                                changeCity(cityName, false, cfg.code);
                             }
                             return false;
                         };
                         document.getElementById('achApplySuggestedCity').onclick = function() {
                             var cityName = document.getElementById('achSuggestedName').value;
                             if (cityName !== '' && cityName !== 'N/A') {
-                                changeCity(cityName, true);
+                                changeCity(cityName, true, cfg.code);
                             }
                             return false;
                         };
@@ -982,7 +983,7 @@
         function getCityRequest(row, btnID, btnClass) {
             function requestCallback(res) {
                 var count = "error";
-                if (validateHTTPResponse(res, getCityRequest)) {
+                if (validateHTTPResponse(res)) {
                     var text = JSON.parse(res.responseText);
                     count = text.count;
                     if (text.result == 'success') {
@@ -1046,7 +1047,7 @@
         function getRequestsCount() {
             function requestCallback(res) {
                 var count = "error";
-                if (validateHTTPResponse(res, getRequestsCount)) {
+                if (validateHTTPResponse(res)) {
                     var text = JSON.parse(res.responseText);
                     count = text.count;
                 }
@@ -1088,7 +1089,7 @@
         }
 
         // thanks, guys, for the functions :)
-        function changeCity(cityName, doSave) {
+        function changeCity(cityName, doSave, forcedCountryCode) {
             function getEditFormControlName(id) {
                 var beta = (location.hostname == "editor-beta.waze.com" ? true : false);
 
@@ -1149,9 +1150,12 @@
                             });
                         }
                         var country = $(getEditFormControlName('country'));
-                        if (curRequest.countrycode && country.val() != curRequest.countrycode)
+                        if (!forcedCountryCode) {
+                            forcedCountryCode = curRequest.countrycode;
+                        }
+                        if (forcedCountryCode && country.val() != forcedCountryCode)
                         {
-                            country.val(curRequest.countrycode).change();
+                            country.val(forcedCountryCode).change();
                         }
                     }
                 }
