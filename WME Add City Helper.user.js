@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WME Add City Helper
 // @namespace    madnut.ua@gmail.com
-// @version      0.5.8
+// @version      0.6.0
 // @description  Helps to add cities using WME Requests spreadsheet
 // @author       madnut
 // @include      https://*waze.com/*editor*
@@ -9,6 +9,7 @@
 // @connect      google.com
 // @connect      script.googleusercontent.com
 // @connect      localhost
+// @connect      wazeolenta.org
 // @grant        GM_xmlhttpRequest
 // @grant        GM_setClipboard
 // @updateURL    https://github.com/madnut-ua/wme_addcityhelper/raw/master/WME%20Add%20City%20Helper.user.js
@@ -21,7 +22,9 @@
 
     var requestsTimeout = 20000; // in ms
     var minZoomLevel = 4;
-    var minAnalyzerVersion = 120; // Ukraine's MinRegion Analyzer
+    var minAnalyzerVersion = 200; // Ukraine's MinRegion Analyzer minimum version required to work properly with the script
+    var analyzerUrl = 'http://wazeolenta.org/api/uk/mr/GetSuggestedCityName';
+    //var analyzerUrl = 'http://localhost:8080/api/uk/mr/GetSuggestedCityName';
     var config = {
         BO: {
             "country": "Беларусь",
@@ -398,11 +401,11 @@
 
                     document.getElementById('achApproveRequest').onclick = function() {
                         onApproveRequest(false);
-                    }
+                    };
                     document.getElementById('achApproveWithComment').onclick = function(e) {
                         onApproveRequest(true);
                         e.preventDefault();
-                    }
+                    };
 
                     document.getElementById('achDeclineRequest').onclick = onDeclineRequest;
                     document.getElementById('achSendEmail').onclick = onSendEmail;
@@ -645,7 +648,7 @@
             if (lnk) {
                 updateMinRegionInfo(emptyResponse);
 
-                var url = 'http://localhost:8080/GetSuggestedCityName' + '?lon=' + lnk.lon + '&lat=' + lnk.lat;
+                var url = analyzerUrl + '?lon=' + lnk.lon + '&lat=' + lnk.lat;
                 sendHTTPRequest(url, 'achCheckInMinRegion', 'fa fa-map-o', requestCallback);
             }
         }
@@ -828,9 +831,11 @@
             }
 
             if (rs && rs.status) {
-                document.getElementById('achMRResponseStatus').style.color = (rs.status == 'OK' ? 'green' : (rs.status.match(/error/i) ? 'red' : 'darkorange'));
-                document.getElementById('achMRResponseStatus').innerHTML = rs.status.replace(',', '</br>');
-                document.getElementById('achMRResponseComments').innerHTML = rs.comments.replace(',', '</br>');
+                var st = rs.status.join('</br>');
+                var cm = rs.comments.join('</br>');
+                document.getElementById('achMRResponseStatus').style.color = (st == 'OK' ? 'green' : (st.match(/error/i) ? 'red' : 'darkorange'));
+                document.getElementById('achMRResponseStatus').innerHTML = st;
+                document.getElementById('achMRResponseComments').innerHTML = cm;
             }
             else {
                 document.getElementById('achMRResponseStatus').innerHTML = '';
