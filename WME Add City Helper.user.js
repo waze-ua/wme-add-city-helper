@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WME Add City Helper
 // @namespace    madnut.ua@gmail.com
-// @version      0.6.0
+// @version      0.6.1
 // @description  Helps to add cities using WME Requests spreadsheet
 // @author       madnut
 // @include      https://*waze.com/*editor*
@@ -179,6 +179,7 @@
             var panelID = "WME-ACH";
             var sItems = Waze.selectionManager.selectedItems;
             if (!document.getElementById(panelID) && sItems.length > 0 && sItems[0].model.type === 'segment') {
+                var unsavedChanges = Waze.model.actionManager.unsavedActionsNum() > 0;
                 var segInfo = getSegmentInfo();
                 var panelElement = document.createElement('div');
                 panelElement.id = panelID;
@@ -209,6 +210,8 @@
                             '<button id="achCopyCityID" class="btn-link" type="button" title="Скопировать в буфер" style="height: auto;">' +
                             '<i class="fa fa-clipboard"></i>' +
                             '</button>' +
+                            '<span id="achCityName" style="color: ' + (segInfo.cityName && unsavedChanges && segInfo.status === "Update" ? '#e54444' : '#000000') + ';">' + (segInfo.cityName ? segInfo.cityName : 'N/A') +
+                            '</span>' +
                             '</br>' +
                             '<label style="font-weight: bold;">State ID:&nbsp;</label>' +
                             '<span id="achStateID">' + (segInfo.stateID ? segInfo.stateID : 'N/A') +
@@ -216,6 +219,8 @@
                             '<button id="achCopyStateID" class="btn-link" type="button" title="Скопировать в буфер" style="height: auto;">' +
                             '<i class="fa fa-clipboard"></i>' +
                             '</button>' +
+                            '<span id="achStateName" style="color: ' + (segInfo.stateName && unsavedChanges && segInfo.status === "Update" ? '#e54444' : '#000000') + ';">' + (segInfo.stateName ? segInfo.stateName : 'N/A') +
+                            '</span>' +
                             '</div>' +
                             '</div>' +
                             // end 0
@@ -941,6 +946,7 @@
 
             var selectedItem = Waze.selectionManager.selectedItems[0];
             if (selectedItem && selectedItem.model.type === "segment") {
+                segInfo.status = selectedItem.model.state;
                 var attr = selectedItem.model.attributes;
                 if (attr) {
                     // 1
