@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WME Add City Helper
 // @namespace    madnut.ua@gmail.com
-// @version      0.6.1
+// @version      0.6.2
 // @description  Helps to add cities using WME Requests spreadsheet
 // @author       madnut
 // @include      https://*waze.com/*editor*
@@ -20,7 +20,7 @@
 (function() {
     'use strict';
 
-    var requestsTimeout = 20000; // in ms
+    var requestsTimeout = 30000; // in ms
     var minZoomLevel = 4;
     var minAnalyzerVersion = 200; // Ukraine's MinRegion Analyzer minimum version required to work properly with the script
     var analyzerUrl = 'http://wazeolenta.org/api/uk/mr/GetSuggestedCityName';
@@ -91,7 +91,12 @@
             "addedcity": "",
             "status": ""
         };
-
+        var curOptions = {
+            'achAutoLock': (localStorage.getItem('achAutoLock') == 'true'),
+            'achAutoSendEmail': (localStorage.getItem('achAutoSendEmail') == 'true'),
+            'achAutoGoNextRequest': (localStorage.getItem('achAutoGoNextRequest') == 'true'),
+            'achAutoSaveCity': (localStorage.getItem('achAutoSaveCity') == 'true')
+        };
         var editPanel = $("#edit-panel");
         if (!editPanel) {
             setTimeout(ACHelper_init, 800);
@@ -280,9 +285,6 @@
                             '<li><a id="achApproveWithComment" href="#"><i class="fa fa-plus"></i>&nbsp;Комментарий</a></li>' +
                             '</ul>' +
                             '</div>' +
-                            //'<button id="achApproveRequest" class="btn btn-success" type="button" title="Одобрить запрос" style="font-size: 16px; padding: 6px 16px;">' +
-                            //'<i class="fa fa-thumbs-up"></i>' +
-                            //'</button>' +
                             // decline
                             '<button id="achDeclineRequest" class="btn btn-danger" type="button" title="Отказать" style="font-size: 16px; padding: 6px 16px;">' +
                             '<i class="fa fa-thumbs-down"></i>' +
@@ -365,6 +367,22 @@
                                 '</div>';
                             // end 2
                         }
+                        
+                        // block 3 - settings
+                        html +=
+                            '<div class="form-group">' +
+                            '<div id="achSettingsHeader">' +
+                            '<label class="control-label" style="cursor: pointer;"><i class="fa fa-plus-square" style="margin-right: 5px;"></i>Настройки</label>' +
+                            '</div>' +
+                            '<div id="achSettingsContent" class="controls" style="border: 1px solid #d3d3d3; padding: 5px; display: none;">' +
+                            '<input type="checkbox" id="achAutoLock" /><label for="achAutoLock" style="margin-bottom: 0px; font-weight: normal;">Авто-лок запроса при получении</label><br/>' +
+                            '<input type="checkbox" id="achAutoSendEmail" /><label for="achAutoSendEmail" style="margin-bottom: 0px; font-weight: normal;">Авто-отправка письма при <i class="fa fa-thumbs-up"></i> или <i class="fa fa-thumbs-down"></i></label><br/>' +
+                            '<input type="checkbox" id="achAutoGoNextRequest" /><label for="achAutoGoNextRequest" style="margin-bottom: 0px; font-weight: normal;">Авто-переход к след. запросу</label><br/>' +
+                            '<input type="checkbox" id="achAutoSaveCity" /><label for="achAutoSaveCity" style="margin-bottom: 0px; font-weight: normal;">Авто-сохранение НП при <i class="fa fa-thumbs-up"></i></label><br/>' +
+                            '</div>' +
+                            '</div>';
+                        // end 3
+                        
                         panelElement.innerHTML = html;
                         panelElement.className = "tab-pane";
                         tabContent.appendChild(panelElement);
@@ -398,8 +416,24 @@
                         var cityName = document.getElementById('achRequestedCity').value;
                         if (cityName !== '' && cityName !== 'N/A') {
                             var cutCity = cityName.split('(')[0].trim();
+                            
                             changeCity(cutCity, false);
+                            
+                            // display it bold and red
+                            var cityTextBox = $('input[name="cityName"]');
+                            if (cityTextBox && cityTextBox.val() == cityName) {
+                                var cn = document.getElementById('achCityName');
+                                cn.innerHTML = cityName;
+                                cn.style.color = '#e54444';
+                                cn.style.fontWeight = 'bold';
+                                
+                                cn = document.getElementById('achStateName');
+                                cn.innerHTML = $('select[name="stateID"]').text().trim();
+                                cn.style.color = '#e54444';
+                                cn.style.fontWeight = 'bold';
+                            }
                         }
+                        
                         return false;
                     };
                     document.getElementById('achLockRequest').onclick = onLockRequest;
@@ -423,7 +457,51 @@
 
                     document.getElementById('achSaveLevel5').onclick = onSaveLevel5;
 
-                    //Ukraine
+                    // Settings
+                    // container expander
+                    $("#achSettingsHeader").click(function () {
+                        var header = $(this);
+                        var content = header.next();
+                        content.slideToggle(333, function () {
+                            header.find("i").removeClass().addClass(function () {
+                                return content.is(":visible") ? "fa fa-minus-square" : "fa fa-plus-square";
+                            });
+                        });
+                    });
+                    // init checkboxes state
+                    var chk = document.getElementById('achAutoLock');
+                    chk.checked = curOptions[chk.id];
+                    chk.onclick = function() {
+                        curOptions[this.id] = this.checked;
+                        localStorage.setItem(this.id, this.checked.toString());
+                        document.getElementById('achLockRequest').style.display = this.checked ? 'none' : 'block';
+                    };
+                    document.getElementById('achLockRequest').style.display = chk.checked ? 'none' : 'block';
+                    
+                    chk = document.getElementById('achAutoSendEmail');
+                    chk.checked = curOptions[chk.id];
+                    chk.onclick = function() {
+                        curOptions[this.id] = this.checked;
+                        localStorage.setItem(this.id, this.checked.toString());
+                        document.getElementById('achSendEmail').style.display = this.checked ? 'none' : 'block';
+                    };
+                    document.getElementById('achSendEmail').style.display = chk.checked ? 'none' : 'block';
+                    
+                    chk = document.getElementById('achAutoGoNextRequest');
+                    chk.checked = curOptions[chk.id];
+                    chk.onclick = function() {
+                        curOptions[this.id] = this.checked;
+                        localStorage.setItem(this.id, this.checked.toString());
+                    };
+                    
+                    chk = document.getElementById('achAutoSaveCity');
+                    chk.checked = curOptions[chk.id];
+                    chk.onclick = function() {
+                        curOptions[this.id] = this.checked;
+                        localStorage.setItem(this.id, this.checked.toString());
+                    };
+                    
+                    // Ukraine related
                     if (cfg.code == "232") {
                         document.getElementById('achCheckInMinRegion').onclick = onCheckMinRegion;
                         document.getElementById('achApplyFoundCity').onclick = function() {
@@ -458,9 +536,12 @@
 
         function setButtonClass(id, className) {
             if (id) {
-                var iButton = document.getElementById(id).firstChild;
-                if (iButton && iButton.className !== className) {
-                    iButton.className = className;
+                var elem = document.getElementById(id);
+                if (elem) {
+                    var iButton = elem.firstChild;
+                    if (iButton && iButton.className !== className) {
+                        iButton.className = className;
+                    }
                 }
             }
         }
@@ -664,6 +745,10 @@
                     var text = JSON.parse(res.responseText);
                     if (text.result == 'success') {
                         setRequestStatus('approved');
+                        
+                        if (curOptions['achAutoSendEmail']) {
+                            onSendEmail('achApproveRequest', 'fa fa-thumbs-up');
+                        }
                     }
                     else {
                         alert(text.result);
@@ -681,8 +766,14 @@
                     return;
                 }
                 if (Waze.model.actionManager.unsavedActionsNum() > 0) {
-                    alert("Похоже, что Вы забыли сохранить изменения в редакторе.\nСохраните перед одобрением запроса ;)");
-                    return;
+                    if (curOptions['achAutoSaveCity']) {
+                        // autosave
+                        $('.waze-icon-save').click();
+                    }
+                    else {
+                        alert("Похоже, что Вы забыли сохранить изменения в редакторе.\nСохраните перед одобрением запроса ;)");
+                        return;
+                    }
                 }
                 curRequest.addedcity = segInfo.cityName;
                 if (askForComment) {
@@ -707,6 +798,10 @@
                     var text = JSON.parse(res.responseText);
                     if (text.result == 'success') {
                         setRequestStatus('declined');
+                        
+                        if (curOptions['achAutoSendEmail']) {
+                            onSendEmail('achDeclineRequest', 'fa fa-thumbs-down');
+                        }
                     }
                     else {
                         alert(text.result);
@@ -729,15 +824,21 @@
             }
         }
 
-        function onSendEmail() {
+        function onSendEmail(buttonId, buttonClass) {
             function requestCallback(res) {
                 if (validateHTTPResponse(res)) {
                     var text = JSON.parse(res.responseText);
                     if (text.result == 'success') {
                         setRequestStatus(curRequest.status + ", emailed");
                         //alert("Письмо успешно отправлено!");
-                        // update counter
-                        getRequestsCount();
+                        
+                        if (curOptions['achAutoGoNextRequest']) {
+                            getCityRequest(null, 'achSkipRequest', 'fa fa-forward');
+                        }
+                        else {
+                            // update counter
+                            getRequestsCount();
+                        }
                     }
                     else {
                         alert(text.result);
@@ -749,7 +850,7 @@
 
             if (curRequest.row && cfg) {
                 var url = cfg.apiUrl + '?func=sendEmail&row=' + curRequest.row;
-                sendHTTPRequest(url, 'achSendEmail', 'fa fa-envelope-o', requestCallback);
+                sendHTTPRequest(url, buttonId ? buttonId : 'achSendEmail', buttonClass ? buttonClass : 'fa fa-envelope-o', requestCallback);
             }
         }
 
@@ -864,6 +965,10 @@
                 curRequest.statecode = rq.statecode;
 
                 jumpToLink(rq.permalink);
+                
+                if (curOptions['achAutoLock']) {
+                    onLockRequest();
+                }
             }
             else {
                 curRequest.author = '';
@@ -953,24 +1058,27 @@
                     segInfo.id = attr.id;
 
                     if (attr.primaryStreetID) {
-                        var street = Waze.model.streets.get(attr.primaryStreetID);
                         // 2
                         segInfo.streetID = attr.primaryStreetID;
-                        // 3
-                        segInfo.streetName = street.name;
-                        if (street.cityID) {
-                            // 4
-                            segInfo.cityID = street.cityID;
-                            var city = Waze.model.cities.get(street.cityID);
-                            // 5
-                            segInfo.cityName = city.attributes.name;
 
-                            if (city.attributes.stateID) {
-                                // 6
-                                segInfo.stateID = city.attributes.stateID;
-                                var state = Waze.model.states.get(city.attributes.stateID);
-                                // 7
-                                segInfo.stateName = state.name;
+                        var street = Waze.model.streets.get(attr.primaryStreetID);
+                        if (street) {
+                            // 3
+                            segInfo.streetName = street.name;
+                            if (street.cityID) {
+                                // 4
+                                segInfo.cityID = street.cityID;
+                                var city = Waze.model.cities.get(street.cityID);
+                                // 5
+                                segInfo.cityName = city.attributes.name;
+
+                                if (city.attributes.stateID) {
+                                    // 6
+                                    segInfo.stateID = city.attributes.stateID;
+                                    var state = Waze.model.states.get(city.attributes.stateID);
+                                    // 7
+                                    segInfo.stateName = state.name;
+                                }
                             }
                         }
                     }
@@ -1105,7 +1213,7 @@
                 var beta = (location.hostname == "editor-beta.waze.com" ? true : false);
 
                 var controlsMap = {
-                    form: beta ? 'div[class="address-edit-btn"]' : 'div[class="address-edit-btn"]',
+                    form: beta ? '.address-edit-input' : '.address-edit-input',
                     country: beta ? 'select[name="countryID"]' : 'select[name="countryID"]',
                     state: beta ? 'select[name="stateID"]' : 'select[name="stateID"]',
                     cityname: beta ? 'input[name="cityName"]' : 'input[name="cityName"]',
@@ -1121,66 +1229,63 @@
             }
             $(getEditFormControlName('form')).click();
 
-            setTimeout(function() {
-
-                var cityChanged = false;
-                var city = $(getEditFormControlName('cityname'));
-                if (city.val() == cityName) {
-                    alert('НП уже имеет такое имя. Отмена.');
+            var cityChanged = false;
+            var city = $(getEditFormControlName('cityname'));
+            if (city.val() == cityName) {
+                alert('НП уже имеет такое имя. Отмена.');
+            }
+            else {
+                var chkCity = $(getEditFormControlName('citynamecheck'));
+                if (chkCity[0].checked) {
+                    chkCity.click();
                 }
-                else {
-                    var chkCity = $(getEditFormControlName('citynamecheck'));
-                    if (chkCity[0].checked) {
-                        chkCity.click();
+
+                city = $(getEditFormControlName('cityname'));
+
+                if (city.val().length === 0 ||
+                    (city.val().length !== 0 &&
+                     confirm('Другое имя НП уже присвоено данному сегменту. \nВы уверены, что хотите изменить его?'))) {
+
+                    city.val(cityName).change();
+                    cityChanged = true;
+
+                    var street = $(getEditFormControlName('streetname')).val().length;
+                    if (!street) {
+                        var chkStreet = $(getEditFormControlName('streetnamecheck'));
+                        if (!chkStreet[0].checked) {
+                            chkStreet.click();
+                        }
                     }
 
-                    city = $(getEditFormControlName('cityname'));
-
-                    if (city.val().length === 0 ||
-                        (city.val().length !== 0 &&
-                         confirm('Другое имя НП уже присвоено данному сегменту. \nВы уверены, что хотите изменить его?'))) {
-
-                        city.val(cityName).change();
-                        cityChanged = true;
-
-                        var street = $(getEditFormControlName('streetname')).val().length;
-                        if (!street) {
-                            var chkStreet = $(getEditFormControlName('streetnamecheck'));
-                            if (!chkStreet[0].checked) {
-                                chkStreet.click();
+                    var state = $(getEditFormControlName('state'));
+                    if (state && curRequest.statecode && state.val() && (state.val() != curRequest.statecode))
+                    {
+                        state.each(function() {
+                            if (this.value == curRequest.statecode) {
+                                state.val(curRequest.statecode).change();
                             }
-                        }
-
-                        var state = $(getEditFormControlName('state'));
-                        if (state && curRequest.statecode && state.val() && (state.val() != curRequest.statecode))
-                        {
-                            state.each(function() {
-                                if (this.value == curRequest.statecode) {
-                                    state.val(curRequest.statecode).change();
-                                }
-                            });
-                        }
-                        var country = $(getEditFormControlName('country'));
-                        if (!forcedCountryCode) {
-                            forcedCountryCode = curRequest.countrycode;
-                        }
-                        if (forcedCountryCode && country.val() != forcedCountryCode)
-                        {
-                            country.val(forcedCountryCode).change();
-                        }
+                        });
+                    }
+                    var country = $(getEditFormControlName('country'));
+                    if (!forcedCountryCode) {
+                        forcedCountryCode = curRequest.countrycode;
+                    }
+                    if (forcedCountryCode && country.val() != forcedCountryCode)
+                    {
+                        country.val(forcedCountryCode).change();
                     }
                 }
-                if (doSave === true && cityChanged) {
-                    $('button[' + getEditFormControlName('save') + ']').click();
-                }
-                else if (cityChanged) {
-                    city.focus();
-                    city.select();
-                }
-                else {
-                    $('button[' + getEditFormControlName('cancel') + ']').click();
-                }
-            }, 60);
+            }
+            if (doSave === true && cityChanged) {
+                $('button[' + getEditFormControlName('save') + ']').click();
+            }
+            else if (cityChanged) {
+                city.focus();
+                city.select();
+            }
+            else {
+                $('button[' + getEditFormControlName('cancel') + ']').click();
+            }
         }
 
         // add listener for tab changes
