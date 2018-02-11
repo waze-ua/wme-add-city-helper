@@ -1,5 +1,14 @@
-// Страна
+// ==AppsScript==
+// @name         Main code for WME Requests
+// @version      0.2.0
+// @description  Different functions for easier city requests processing
+// @author       skirda, madnut
+// @email        
+// ==/AppsScript==
+
+// Country specific settings
 var countryID = "232";
+var timezone = "Europe/Kiev";
 
 // "Идентификаторы" столбцов
 var cid = {
@@ -25,34 +34,8 @@ var cid = {
 };
 //************************************************************************************************
 
-function getShortDate(date) {
-  // получить короткую дату DD.MM.YYYY
-  var dd = date.getDate();
-  var mm = date.getMonth() + 1;
-  var yyyy = date.getFullYear();
-  var HH = date.getHours();
-  var MM = date.getMinutes();
-  var SS = date.getSeconds();
-
-  if (dd < 10) {
-    dd = '0' + dd;
-  }
-  if (mm < 10) {
-    mm = '0' + mm;
-  }
-  if (HH < 10) {
-    HH = '0' + HH;
-  }
-  if (MM < 10) {
-    MM = '0' + MM;
-  }
-  if (SS < 10) {
-    SS = '0' + SS;
-  }
-
-  date = dd + '.' + mm + '.' + yyyy + ' ' + HH + ':' + MM + ':' + SS;
-
-  return date;
+function getShortDate(date, tzone) {
+  return Utilities.formatDate(date, tzone ? tzone : "GMT", "dd.MM.yyyy HH:mm:ss");
 }
 
 function onOpen() {
@@ -84,14 +67,21 @@ function setCell0(sheet, currRow, c, s) {
 }
 
 function sendEmail(row) {
-  function setCell(sheet, c, s) {
-    // установить значение ячейки C текущей строки в S с добавлением к предыдущему.
+  function getCurrRow() {
     var currRow = (row ? row : sheet.getActiveCell().getRow());
+    return currRow;
+  }
+  function setCell(sheet, c, s, f) {
+    // установить значение ячейки C текущей строки в S с добавлением к предыдущему.
+    var currRow = getCurrRow();
     sheet.getRange(c + currRow).setValue(s);
+    if (f) {
+      sheet.getRange(c + currRow).setNumberFormat(f);
+    }
   }
 
   var sheet = SpreadsheetApp.getActiveSpreadsheet();
-  var currRow = (row ? row : sheet.getActiveCell().getRow());
+  var currRow = getCurrRow();
 
   var isSendYet = sheet.getRange(cid.issent + currRow).getValue();
 
@@ -122,44 +112,43 @@ function sendEmail(row) {
     };
   }
 
-  var curDateStamp = new Date();
+  var curDateStamp = getShortDate(new Date(), timezone);
 
-  var subject = "[WME City Lock] Запрос обработан ";
-  var message = "<p>Здравствуйте, " + fio + "!" + "</br></p>";
-
+  var subject = "[WME City Lock] Ваш запит ";
+  var message = "<p>Вітаємо, " + fio + "!" + "</br></p>";
+  message += "<p><p>Ваш запит від " + getShortDate(dtOrig) + " на додавання населеного пункту «<b>" + NameCity + "</b>» ";
+  
   if (Result == "да" || Result == "yes") {
-    subject += "положительно.";
-    message += "<p><p>Ваш запрос от " + getShortDate(dtOrig) + " на добавление населенного пункта «<b>" + NameCity + "</b>» <font color=#007700><b>выполнен</b></font> " + getShortDate(curDateStamp) + ".</p>" +
-    "<p>В области " + permalinkValues + " создан населенный пункт: «<b>" + FinalMes + "</b>».</p>";
+    subject += "оброблено.";
+    message += "<font color=#007700><b>виконано</b></font> " + curDateStamp + ".</p>" + "<p>В області " + permalinkValues + " створено населений пункт: «<b>" + FinalMes + "</b>».</p>";
   } else {
-    subject += "отрицательно.";
-    message += "<p><p>Ваш запрос от " + getShortDate(dtOrig) + " на добавление населенного пункта «<b>" + NameCity + "</b>» в области " + permalinkValues + " <font color=red><b>не выполнен</b></font>.</p>" +
-    "<p>Причина: «<em>" + FinalMes + "</em>».</p>";
+    subject += "відхилено.";
+    message += "в області " + permalinkValues + " <font color=red><b>не виконано</b></font>.</p>" + "<p>Причина: «<em>" + FinalMes + "</em>».</p>";
   }
 
-  var PostScriptum = "<font color=#007500><b>Если Вы еще не присоединились к украинскому сообществу редакторов, но у вас есть желание продолжать улучшать карту Waze, взаимодействуя с остальными участниками проекта, заполните пожалуйста эту форму: http://goo.gl/forms/aUYIThl5gg. Будем рады Вас видеть! )))</b></font>";
+  var PostScriptum = "<font color=#007500><b>Якщо Ви ще не приєднались до української спільноти редакторів, але маєте бажання продовжувати покращувати мапу Waze, взаємодіючи з іншими учасниками проекту, перейдіть за наступним посиланням - це запрошення у чат спільноти: http://wazeukraine.tk . Будемо раді Вас бачити! )))</b></font>";
 
   message += "<p><p>-- <p><em>" + NickSolver + "</em></p>" + PostScriptum;
-  var wazeLogoUrl = "https://dl.dropboxusercontent.com/s/h4o31nbqjsmoth9/waze_ua.png";
-  var wazeLogoBlob = UrlFetchApp
-    .fetch(wazeLogoUrl)
-    .getBlob()
-    .setName("wazeLogoUrl");
+  //var wazeLogoUrl = "https://dl.dropboxusercontent.com/s/h4o31nbqjsmoth9/waze_ua.png";
+  //var wazeLogoBlob = UrlFetchApp
+  //  .fetch(wazeLogoUrl)
+  //  .getBlob()
+  //  .setName("wazeLogoUrl");
 
   MailApp.sendEmail({
     to: address,
     subject: subject,
     htmlBody: message,
     inlineImages: {
-      wazeLogoUrl: wazeLogoBlob
+      //wazeLogoUrl: wazeLogoBlob
     }
   });
 
   // запись времени отправки
-  setCell(sheet, cid.issent, getShortDate(curDateStamp));
+  setCell(sheet, cid.issent, curDateStamp);
   // запись "времени простоя"
-  setCell(sheet, cid.delay, Math.round((curDateStamp.getTime() - dtOrig.getTime()) / (3600 * 24)));
-
+  setCell(sheet, cid.delay, "=" + cid.issent + currRow + "-" + cid.date + currRow, "[mm]");
+  
   setCityID(currRow);
 
   //Browser.msgBox("Письмо успешно отправлено!");
@@ -206,7 +195,7 @@ function getcityID(cityName) {
   cityName = encodeURI(cityName);
   cityName = cityName.replace(/%25C2/g, "%C2");
   cityName = cityName.replace(/%25A0/g, "%A0");
-
+  
   var url = "https://www.waze.com/row-Descartes-live/app/CityExistence?cityName=" + cityName + "&countryID=" + countryID + "&stateID=1&box=38.245107%2C51.736717%2C38.282278%2C51.743494";
   var response = UrlFetchApp.fetch(url);
   var json = response.getContentText();

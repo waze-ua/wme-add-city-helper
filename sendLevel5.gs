@@ -1,6 +1,6 @@
 // ==AppsScript==
 // @name         Send Level 5
-// @version      0.2.0
+// @version      0.2.1
 // @description  API for saving city data to Level5 sheet
 // @author       skirda, madnut
 // @email        
@@ -94,8 +94,8 @@ function sendLevel5(e) {
     //  a                 b     c       d           e       f     g
     var n = parseInt(mySheet.getLastRow() + 1);
 
-    var curDateStamp = new Date();
-    mySheet.getRange("A" + n).setValue(getShortDate(curDateStamp));
+    var curDateStamp = getShortDate(new Date(), timezone);
+    mySheet.getRange("A" + n).setValue(curDateStamp);
     mySheet.getRange("C" + n).setValue(City);
     mySheet.getRange("B" + n).setValue(createUser);
     mySheet.getRange("D" + n).setValue(Permalink);
