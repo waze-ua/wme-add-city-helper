@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WME Add City Helper
 // @namespace    madnut.ua@gmail.com
-// @version      0.6.2
+// @version      0.6.3
 // @description  Helps to add cities using WME Requests spreadsheet
 // @author       madnut
 // @include      https://*waze.com/*editor*
@@ -64,11 +64,11 @@
     }
 
     function ACHelper_bootstrap() {
-        if (typeof Waze === "undefined" ||
-            typeof Waze.map === "undefined" ||
-            typeof Waze.selectionManager === "undefined" ||
-            typeof Waze.model.countries === "undefined" ||
-            typeof Waze.model.countries.top === "undefined" ||
+        if (typeof W === "undefined" ||
+            typeof W.map === "undefined" ||
+            typeof W.selectionManager === "undefined" ||
+            typeof W.model.countries === "undefined" ||
+            typeof W.model.countries.top === "undefined" ||
             typeof I18n === "undefined" ||
             typeof I18n.translations === "undefined") {
             setTimeout(ACHelper_bootstrap, 700);
@@ -103,12 +103,12 @@
             return;
         }
 
-        var bordersLayer = new OpenLayers.Layer.Vector("City Borders", {
+        var bordersLayer = new OL.Layer.Vector("City Borders", {
             displayInLayerSwitcher: true,
             uniqueName: "ACHBorders"
         });
 
-        Waze.map.addLayer(bordersLayer);
+        W.map.addLayer(bordersLayer);
 
         function drawCityBorder(cityname, coords)
         {
@@ -121,15 +121,15 @@
                         var polyPoints = new Array(itemsB.length);
                         itemsB.forEach(function(itemsC, k, arr) {
 
-                            polyPoints[k] = new OpenLayers.Geometry.Point(itemsC[0], itemsC[1]).transform(
-                                new OpenLayers.Projection("EPSG:4326"), // transform from WGS 1984
-                                Waze.map.getProjectionObject() // to Spherical Mercator Projection
+                            polyPoints[k] = new OL.Geometry.Point(itemsC[0], itemsC[1]).transform(
+                                new OL.Projection("EPSG:4326"), // transform from WGS 1984
+                                W.map.getProjectionObject() // to Spherical Mercator Projection
                             );
                         });
-                        var polygon = new OpenLayers.Geometry.Polygon(new OpenLayers.Geometry.LinearRing(polyPoints));
+                        var polygon = new OL.Geometry.Polygon(new OL.Geometry.LinearRing(polyPoints));
                         var site_style = new borderStyle('#FFFF00', cityname);
 
-                        var poly = new OpenLayers.Feature.Vector(polygon, null, site_style);
+                        var poly = new OL.Feature.Vector(polygon, null, site_style);
                         bordersLayer.addFeatures(poly);
                     });
                 });
@@ -174,7 +174,7 @@
         }
 
         function drawTab() {
-            var cfg =  config[Waze.model.countries.top.abbr];
+            var cfg =  config[W.model.countries.top.abbr];
 
             if (!cfg) {
                 // country is not supported
@@ -182,9 +182,9 @@
             }
 
             var panelID = "WME-ACH";
-            var sItems = Waze.selectionManager.selectedItems;
+            var sItems = W.selectionManager.selectedItems;
             if (!document.getElementById(panelID) && sItems.length > 0 && sItems[0].model.type === 'segment') {
-                var unsavedChanges = Waze.model.actionManager.unsavedActionsNum() > 0;
+                var unsavedChanges = W.model.actionManager.unsavedActionsNum() > 0;
                 var segInfo = getSegmentInfo();
                 var panelElement = document.createElement('div');
                 panelElement.id = panelID;
@@ -653,20 +653,20 @@
 
                     if (text.result) {
                         if (text.result == 'found') {
-                            msg = "НП найден в таблице '" + text.sheet + "'. Строка " + text.line;
+                            msg = "ACH: НП найден в таблице '" + text.sheet + "'. Строка " + text.line;
                         }
                         else if (text.result == 'add') {
-                            msg = "НП успешно добавлен в таблицу.";
+                            msg = "ACH: НП успешно добавлен в таблицу.";
                         }
                     }
                     alert(msg);
                 }
             }
-            var cfg = config[Waze.model.countries.top.abbr];
+            var cfg = config[W.model.countries.top.abbr];
 
             if (cfg) {
                 var segInfo = getSegmentInfo();
-                var user = Waze.loginManager.user.userName;
+                var user = W.loginManager.user.userName;
 
                 if (segInfo.cityName && segInfo.date && segInfo.cityID && segInfo.permalink) {
                     var permalink = encodeURIComponent(segInfo.permalink);
@@ -674,7 +674,7 @@
                     sendHTTPRequest(url, 'achSaveLevel5', 'fa fa-save', requestCallback);
                 }
                 else {
-                    alert('Не могу отправить запрос сохранения - некоторые нужные поля пустые!');
+                    alert('ACH: Не могу отправить запрос сохранения - некоторые нужные поля пустые!');
                 }
             }
         }
@@ -688,12 +688,12 @@
                         document.getElementById('achLockRequest').disabled = true;
                     }
                     else {
-                        alert(text.result);
+                        alert('ACH: ' + text.result);
                     }
                 }
             }
-            var user = Waze.loginManager.user.userName;
-            var cfg = config[Waze.model.countries.top.abbr];
+            var user = W.loginManager.user.userName;
+            var cfg = config[W.model.countries.top.abbr];
 
             if (curRequest.row && cfg) {
                 var url = cfg.apiUrl + '?func=processRequest&row=' + curRequest.row + '&user=' + user + '&action=lock';
@@ -706,7 +706,7 @@
                 if (validateHTTPResponse(res)) {
                     var text = JSON.parse(res.responseText);
                     if (!text.version || parseInt(text.version) < minAnalyzerVersion) {
-                        alert("Ваша версия анализатора для МинРегиона устарела. Пожалуйста, скачайте новую!");
+                        alert("ACH: Ваша версия анализатора для МинРегиона устарела. Пожалуйста, скачайте новую!");
                         updateMinRegionInfo(emptyResponse);
                     }
                     updateMinRegionInfo(text);
@@ -716,19 +716,19 @@
             var emptyResponse = {};
             var lnk;
 
-            var selectedItem = Waze.selectionManager.selectedItems[0];
+            var selectedItem = W.selectionManager.selectedItems[0];
             if (selectedItem) {
                 log("MinRegion check by object Centroid");
 
                 var centroid = selectedItem.geometry.getCentroid(true); // without "true" it will return start point as a centroid
-                lnk = OpenLayers.Layer.SphericalMercator.inverseMercator(centroid.x, centroid.y);
+                lnk = OL.Layer.SphericalMercator.inverseMercator(centroid.x, centroid.y);
             }
             else if (curRequest.permalink) {
                 log("MinRegion check by request permalink");
                 lnk = parseLink(curRequest.permalink);
             }
             else {
-                alert("This type of check is not supported yet!");
+                alert("ACH: This type of check is not supported yet!");
             }
 
             if (lnk) {
@@ -751,27 +751,27 @@
                         }
                     }
                     else {
-                        alert(text.result);
+                        alert('ACH: ' + text.result);
                     }
                 }
             }
-            var user = Waze.loginManager.user.userName;
-            var cfg = config[Waze.model.countries.top.abbr];
+            var user = W.loginManager.user.userName;
+            var cfg = config[W.model.countries.top.abbr];
 
             if (curRequest.row && cfg) {
                 var segInfo = getSegmentInfo();
 
                 if (!(segInfo.streetID && segInfo.cityName)) {
-                    alert("Ошибка: сегмент без названия. Возможно Вы забыли присвоить сегменту НП?");
+                    alert("ACH Ошибка: сегмент без названия. Возможно Вы забыли присвоить сегменту НП?");
                     return;
                 }
-                if (Waze.model.actionManager.unsavedActionsNum() > 0) {
+                if (W.model.actionManager.unsavedActionsNum() > 0) {
                     if (curOptions['achAutoSaveCity']) {
                         // autosave
                         $('.waze-icon-save').click();
                     }
                     else {
-                        alert("Похоже, что Вы забыли сохранить изменения в редакторе.\nСохраните перед одобрением запроса ;)");
+                        alert("ACH: Похоже, что Вы забыли сохранить изменения в редакторе.\nСохраните перед одобрением запроса ;)");
                         return;
                     }
                 }
@@ -804,12 +804,12 @@
                         }
                     }
                     else {
-                        alert(text.result);
+                        alert('ACH: ' + text.result);
                     }
                 }
             }
-            var user = Waze.loginManager.user.userName;
-            var cfg = config[Waze.model.countries.top.abbr];
+            var user = W.loginManager.user.userName;
+            var cfg = config[W.model.countries.top.abbr];
 
             if (curRequest.row && cfg) {
                 var segInfo = getSegmentInfo();
@@ -830,7 +830,7 @@
                     var text = JSON.parse(res.responseText);
                     if (text.result == 'success') {
                         setRequestStatus(curRequest.status + ", emailed");
-                        //alert("Письмо успешно отправлено!");
+                        //alert("ACH: Письмо успешно отправлено!");
                         
                         if (curOptions['achAutoGoNextRequest']) {
                             getCityRequest(null, 'achSkipRequest', 'fa fa-forward');
@@ -841,12 +841,12 @@
                         }
                     }
                     else {
-                        alert(text.result);
+                        alert('ACH: ' + text.result);
                     }
                 }
             }
 
-            var cfg = config[Waze.model.countries.top.abbr];
+            var cfg = config[W.model.countries.top.abbr];
 
             if (curRequest.row && cfg) {
                 var url = cfg.apiUrl + '?func=sendEmail&row=' + curRequest.row;
@@ -855,7 +855,7 @@
         }
 
         function onSkipRequest() {
-            var cfg = config[Waze.model.countries.top.abbr];
+            var cfg = config[W.model.countries.top.abbr];
 
             if (cfg) {
                 getCityRequest(curRequest.row ? curRequest.row : null, 'achSkipRequest', 'fa fa-forward');
@@ -877,11 +877,11 @@
                 },
                 ontimeout: function(res) {
                     setButtonClass(buttonID, btnClass);
-                    alert("Sorry, request timeout!");
+                    alert("ACH: Sorry, request timeout!");
                 },
                 onerror: function(res) {
                     setButtonClass(buttonID, btnClass);
-                    alert("Sorry, request error!");
+                    alert("ACH: Sorry, request error!");
                 }
             });
         }
@@ -901,7 +901,7 @@
                         break;
                     default:
                         displayError = false;
-                        alert("Error: unsupported status code - " + res.status);
+                        alert("ACH Error: unsupported status code - " + res.status);
                         log(res.responseHeaders);
                         log(res.responseText);
                         break;
@@ -909,11 +909,11 @@
             }
             else {
                 displayError = false;
-                alert("Error: Response is empty!");
+                alert("ACH Error: Response is empty!");
             }
 
             if (displayError) {
-                alert("Error processing request. Response: " + res.responseText);
+                alert("ACH: Error processing request. Response: " + res.responseText);
             }
             return result;
         }
@@ -985,38 +985,38 @@
             var lnk = parseLink(permalink);
 
             function mergestart() {
-                Waze.model.events.unregister("mergestart", null, mergestart);
-                Waze.model.events.register("mergeend", null, mergeend);
+                W.model.events.unregister("mergestart", null, mergestart);
+                W.model.events.register("mergeend", null, mergeend);
             }
             function mergeend() {
-                Waze.model.events.unregister("mergeend", null, mergeend);
+                W.model.events.unregister("mergeend", null, mergeend);
 
                 if (lnk.segments) {
                     // if we have multiple selection
                     var segArray = lnk.segments.split(",");
                     var objects = [];
                     for (var i = 0; i < segArray.length; i++) {
-                        var sObj = Waze.model.segments.objects[segArray[i]];
+                        var sObj = W.model.segments.objects[segArray[i]];
                         if (sObj) {
                             objects.push(sObj);
                         }
                     }
                     if (objects.length > 0) {
-                        Waze.selectionManager.select(objects);
+                        W.selectionManager.select(objects);
                     }
                 }
             }
 
             if (!(lnk.lon && lnk.lat && lnk.segments)) {
-                alert("error parsing permalink: " + permalink);
+                alert("ACH: error parsing permalink: " + permalink);
                 return;
             }
 
-            Waze.model.events.register("mergestart", null, mergestart);
+            W.model.events.register("mergestart", null, mergestart);
 
-            Waze.selectionManager.unselectAll();
-            var xy = OpenLayers.Layer.SphericalMercator.forwardMercator(parseFloat(lnk.lon), parseFloat(lnk.lat));
-            Waze.map.setCenter(xy, (lnk.zoom && lnk.zoom > 3 ? parseInt(lnk.zoom) : minZoomLevel));
+            W.selectionManager.unselectAll();
+            var xy = OL.Layer.SphericalMercator.forwardMercator(parseFloat(lnk.lon), parseFloat(lnk.lat));
+            W.map.setCenter(xy, (lnk.zoom && lnk.zoom > 3 ? parseInt(lnk.zoom) : minZoomLevel));
         }
 
         function parseLink(permalink) {
@@ -1049,7 +1049,7 @@
         function getSegmentInfo() {
             var segInfo = {};
 
-            var selectedItem = Waze.selectionManager.selectedItems[0];
+            var selectedItem = W.selectionManager.selectedItems[0];
             if (selectedItem && selectedItem.model.type === "segment") {
                 segInfo.status = selectedItem.model.state;
                 var attr = selectedItem.model.attributes;
@@ -1061,21 +1061,21 @@
                         // 2
                         segInfo.streetID = attr.primaryStreetID;
 
-                        var street = Waze.model.streets.get(attr.primaryStreetID);
+                        var street = W.model.streets.get(attr.primaryStreetID);
                         if (street) {
                             // 3
                             segInfo.streetName = street.name;
                             if (street.cityID) {
                                 // 4
                                 segInfo.cityID = street.cityID;
-                                var city = Waze.model.cities.get(street.cityID);
+                                var city = W.model.cities.get(street.cityID);
                                 // 5
                                 segInfo.cityName = city.attributes.name;
 
                                 if (city.attributes.stateID) {
                                     // 6
                                     segInfo.stateID = city.attributes.stateID;
-                                    var state = Waze.model.states.get(city.attributes.stateID);
+                                    var state = W.model.states.get(city.attributes.stateID);
                                     // 7
                                     segInfo.stateName = state.name;
                                 }
@@ -1090,7 +1090,7 @@
 
                     // generate permalink
                     var centroid = selectedItem.geometry.getCentroid(true); // without "true" it will return start point as a centroid
-                    var lnk = OpenLayers.Layer.SphericalMercator.inverseMercator(centroid.x, centroid.y);
+                    var lnk = OL.Layer.SphericalMercator.inverseMercator(centroid.x, centroid.y);
                     // 9
                     segInfo.permalink = location.origin + location.pathname + "?env=row&lon=" + lnk.lon + "&lat=" + lnk.lat + "&zoom=4&segments=" + attr.id;
                 }
@@ -1110,12 +1110,12 @@
                         processGetResult(text);
                     }
                     else if (text.result == 'nothing to process') {
-                        alert("Нет доступных запросов для обработки.");
+                        alert("ACH: Нет доступных запросов для обработки.");
                         // set request to empty
                         processGetResult();
                     }
                     else {
-                        alert(text.result);
+                        alert('ACH: ' + text.result);
                         // set request to empty
                         processGetResult();
                     }
@@ -1123,9 +1123,9 @@
                 updateRequestsCount(count);
             }
 
-            var cfg = config[Waze.model.countries.top.abbr];
+            var cfg = config[W.model.countries.top.abbr];
             if (cfg) {
-                var user = Waze.loginManager.user.userName;
+                var user = W.loginManager.user.userName;
 
                 var url = cfg.apiUrl + '?func=getCityRequest&user=' + user;
                 if (row) {
@@ -1173,7 +1173,7 @@
                 updateRequestsCount(count);
             }
 
-            var cfg = config[Waze.model.countries.top.abbr];
+            var cfg = config[W.model.countries.top.abbr];
             if (cfg) {
                 var url = cfg.apiUrl + '?func=getRequestsCount';
                 sendHTTPRequest(url, null, null, requestCallback);
@@ -1232,7 +1232,7 @@
             var cityChanged = false;
             var city = $(getEditFormControlName('cityname'));
             if (city.val() == cityName) {
-                alert('НП уже имеет такое имя. Отмена.');
+                alert('ACH: Сегмент уже имеет такое имя НП. Отмена.');
             }
             else {
                 var chkCity = $(getEditFormControlName('citynamecheck'));
@@ -1244,7 +1244,7 @@
 
                 if (city.val().length === 0 ||
                     (city.val().length !== 0 &&
-                     confirm('Другое имя НП уже присвоено данному сегменту. \nВы уверены, что хотите изменить его?'))) {
+                     confirm('ACH: Другое имя НП уже присвоено данному сегменту. \nВы уверены, что хотите изменить его?'))) {
 
                     city.val(cityName).change();
                     cityChanged = true;
