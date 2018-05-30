@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WME Add City Helper
 // @namespace    madnut.ua@gmail.com
-// @version      0.6.4
+// @version      0.6.5
 // @description  Helps to add cities using WME Requests spreadsheet
 // @author       madnut
 // @include      https://*waze.com/*editor*
@@ -1245,7 +1245,7 @@
 
                 if (city.val().length === 0 ||
                     (city.val().length !== 0 &&
-                     confirm('ACH: Другое имя НП уже присвоено данному сегменту. \nВы уверены, что хотите изменить его?'))) {
+                     confirm('ACH: Другое имя НП уже присвоено данному сегменту (' + city.val() + '). \nВы уверены, что хотите изменить его?'))) {
 
                     city.val(cityName).change();
                     cityChanged = true;
