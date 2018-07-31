@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WME Add City Helper
 // @namespace    madnut.ua@gmail.com
-// @version      0.6.5
+// @version      0.6.6
 // @description  Helps to add cities using WME Requests spreadsheet
 // @author       madnut
 // @include      https://*waze.com/*editor*
@@ -204,7 +204,7 @@
                         navTabs.appendChild(newtab);
 
                         var html =
-                            '<h5>WME Add City Helper <sup>' + GM_info.script.version + '</sup>&nbsp;(' + cfg.country + ')</h5>'+
+                            '<h5>WME Add City Helper <sup>' + GM_info.script.version + '</h5>' +
                             // block 0
                             '<div class="form-group">' +
                             '<label class="control-label">Информация о сегменте</label>' +
@@ -316,57 +316,55 @@
                             '</div>' +
                             '</div>';
 
-                        // Ukraine
-                        if (cfg.code == "232") {
-
-                            html +=
-                                // block 2
-                                '</br>' +
-                                '<div class="form-group">' +
-                                '<label class="control-label">МинРегион</label>' +
-                                // check name in MinRegion
-                                '<div class="controls">' +
-                                '<button id="achCheckInMinRegion" class="action-button btn btn-lightning btn-positive" type="button" title="Проверить имя в МинРегионе">' +
-                                '<i class="fa fa-map-o"></i>&nbsp;Проверить' +
-                                '</button>' +
-                                '</div>' +
-                                '</div>' +
-                                // foundName
-                                '<div class="form-group">' +
-                                '<label class="control-label">Согласно МинРегиону здесь находится</label>' +
-                                '<div class="controls input-group">' +
-                                '<input class="form-control" autocomplete="off" id="achFoundCity" name="" title="Найденный НП" type="text" value="N/A" readonly="readonly" />' +
-                                '<span class="input-group-btn">' +
-                                '<button id="achApplyFoundCity" class="btn btn-primary" type="button" data-original-title="" title="Использовать это имя" style="padding: 0 8px; border-bottom-left-radius: 0; border-top-left-radius: 0; font-size: 16px">' +
-                                '<i class="fa fa-paw"></i>' +
-                                '</button>' +
-                                '</span>' +
-                                '</div>' +
-                                '</div>' +
-                                // suggestedName
-                                '<div class="form-group">' +
-                                '<label class="control-label">Имя с учетом правил именования</label>' +
-                                '<div class="controls input-group">' +
-                                '<input class="form-control" autocomplete="off" id="achSuggestedName" name="" title="Предложенное имя для НП" type="text" value="N/A" readonly="readonly" />' +
-                                '<span class="input-group-btn">' +
-                                '<button id="achApplySuggestedCity" class="btn btn-primary" type="button" data-original-title="" title="Использовать это имя" style="padding: 0 8px; border-bottom-left-radius: 0; border-top-left-radius: 0; font-size: 16px">' +
-                                '<i class="fa fa-paw"></i>' +
-                                '</button>' +
-                                '</span>' +
-                                '</div>' +
-                                '</div>' +
-                                // result
-                                '<div class="form-group">' +
-                                '<label class="control-label">Ответ анализатора</label>' +
-                                '<div class="controls">' +
-                                '<label style="font-weight: bold;">Статус:&nbsp;</label>' +
-                                '<span id="achMRResponseStatus" style="font-weight: bold;"></span></br>' +
-                                '<label style="font-weight: bold;">Комментарии:</label></br>' +
-                                '<span id="achMRResponseComments"></span>' +
-                                '</div>' +
-                                '</div>';
-                            // end 2
-                        }
+                        html +=
+                            // block 2
+                            '<div id="achMinRegionSection">' +
+                            '</br>' +
+                            '<div class="form-group">' +
+                            '<label class="control-label">МинРегион</label>' +
+                            // check name in MinRegion
+                            '<div class="controls">' +
+                            '<button id="achCheckInMinRegion" class="action-button btn btn-lightning btn-positive" type="button" title="Проверить имя в МинРегионе">' +
+                            '<i class="fa fa-map-o"></i>&nbsp;Проверить' +
+                            '</button>' +
+                            '</div>' +
+                            '</div>' +
+                            // foundName
+                            '<div class="form-group">' +
+                            '<label class="control-label">Согласно МинРегиону здесь находится</label>' +
+                            '<div class="controls input-group">' +
+                            '<input class="form-control" autocomplete="off" id="achFoundCity" name="" title="Найденный НП" type="text" value="N/A" readonly="readonly" />' +
+                            '<span class="input-group-btn">' +
+                            '<button id="achApplyFoundCity" class="btn btn-primary" type="button" data-original-title="" title="Использовать это имя" style="padding: 0 8px; border-bottom-left-radius: 0; border-top-left-radius: 0; font-size: 16px">' +
+                            '<i class="fa fa-paw"></i>' +
+                            '</button>' +
+                            '</span>' +
+                            '</div>' +
+                            '</div>' +
+                            // suggestedName
+                            '<div class="form-group">' +
+                            '<label class="control-label">Имя с учетом правил именования</label>' +
+                            '<div class="controls input-group">' +
+                            '<input class="form-control" autocomplete="off" id="achSuggestedName" name="" title="Предложенное имя для НП" type="text" value="N/A" readonly="readonly" />' +
+                            '<span class="input-group-btn">' +
+                            '<button id="achApplySuggestedCity" class="btn btn-primary" type="button" data-original-title="" title="Использовать это имя" style="padding: 0 8px; border-bottom-left-radius: 0; border-top-left-radius: 0; font-size: 16px">' +
+                            '<i class="fa fa-paw"></i>' +
+                            '</button>' +
+                            '</span>' +
+                            '</div>' +
+                            '</div>' +
+                            // result
+                            '<div class="form-group">' +
+                            '<label class="control-label">Ответ анализатора</label>' +
+                            '<div class="controls">' +
+                            '<label style="font-weight: bold;">Статус:&nbsp;</label>' +
+                            '<span id="achMRResponseStatus" style="font-weight: bold;"></span></br>' +
+                            '<label style="font-weight: bold;">Комментарии:</label></br>' +
+                            '<span id="achMRResponseComments"></span>' +
+                            '</div>' +
+                            '</div>' +
+                            '</div>';
+                        // end 2
 
                         // block 3 - settings
                         html +=
@@ -451,12 +449,6 @@
                         onSendEmail();
                     };
                     document.getElementById('achSkipRequest').onclick = onSkipRequest;
-
-                    document.getElementById('achGotoTableCell').onclick = function() {
-                        var w = window.open();
-                        w.location = cfg.requestsTable + '&range=' + curRequest.row + ':' + curRequest.row;
-                    };
-
                     document.getElementById('achSaveLevel5').onclick = onSaveLevel5;
 
                     // Settings
@@ -504,35 +496,39 @@
                     };
 
                     // Ukraine related
-                    if (cfg.code == "232") {
-                        document.getElementById('achCheckInMinRegion').onclick = onCheckMinRegion;
-                        document.getElementById('achApplyFoundCity').onclick = function() {
-                            var cityName = document.getElementById('achFoundCity').value;
-                            if (cityName !== '' && cityName !== 'N/A') {
-                                changeCity(cityName, false, cfg.code);
-                            }
-                            return false;
-                        };
-                        document.getElementById('achApplySuggestedCity').onclick = function() {
-                            var cityName = document.getElementById('achSuggestedName').value;
-                            if (cityName !== '' && cityName !== 'N/A') {
-                                changeCity(cityName, true, cfg.code);
-                            }
-                            return false;
-                        };
-                    }
+                    document.getElementById('achCheckInMinRegion').onclick = onCheckMinRegion;
                 }
             }
 
             if (document.getElementById(panelID) !== null) {
+                // Change config related options
+                // All countries
+                document.getElementById('achApplySuggestedCity').onclick = function() {
+                    var cityName = document.getElementById('achSuggestedName').value;
+                    if (cityName !== '' && cityName !== 'N/A') {
+                        changeCity(cityName, true, cfg.code);
+                    }
+                    return false;
+                };
+                document.getElementById('achGotoTableCell').onclick = function() {
+                    var w = window.open();
+                    w.location = cfg.requestsTable + '&range=' + curRequest.row + ':' + curRequest.row;
+                };
+                // Ukraine related
+                document.getElementById('achApplySuggestedCity').disabled = true;
+                document.getElementById('achApplyFoundCity').disabled = true;
+                document.getElementById('achApplyFoundCity').onclick = function() {
+                    var cityName = document.getElementById('achFoundCity').value;
+                    if (cityName !== '' && cityName !== 'N/A') {
+                        changeCity(cityName, false, cfg.code);
+                    }
+                    return false;
+                };
+                document.getElementById('achMinRegionSection').style.display = cfg.code == "232" ? 'block' : 'none';
+                
+                // update data
                 updateRequestInfo();
                 updateRequestStatus();
-
-                //Ukraine
-                if (cfg.code == "232") {
-                    document.getElementById('achApplyFoundCity').disabled = true;
-                    document.getElementById('achApplySuggestedCity').disabled = true;
-                }
             }
         }
 
@@ -1303,6 +1299,8 @@
         });
         panelObserver.observe(document.getElementById('edit-panel'), { childList: true, subtree: true });
 
+        W.map.events.register("moveend", null, drawTab);
+        
         // need to call in case if it's permalink
         drawTab();
         drawIndicator();
