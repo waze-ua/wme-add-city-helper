@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WME Add City Helper
 // @namespace    madnut.ua@gmail.com
-// @version      0.6.6
+// @version      0.6.7
 // @description  Helps to add cities using WME Requests spreadsheet
 // @author       madnut
 // @include      https://*waze.com/*editor*
@@ -1059,21 +1059,21 @@
                         // 2
                         segInfo.streetID = attr.primaryStreetID;
 
-                        var street = W.model.streets.get(attr.primaryStreetID);
+                        var street = W.model.streets.getObjectById(attr.primaryStreetID);
                         if (street) {
                             // 3
                             segInfo.streetName = street.name;
                             if (street.cityID) {
                                 // 4
                                 segInfo.cityID = street.cityID;
-                                var city = W.model.cities.get(street.cityID);
+                                var city = W.model.cities.getObjectById(street.cityID);
                                 // 5
                                 segInfo.cityName = city.attributes.name;
 
                                 if (city.attributes.stateID) {
                                     // 6
                                     segInfo.stateID = city.attributes.stateID;
-                                    var state = W.model.states.get(city.attributes.stateID);
+                                    var state = W.model.states.getObjectById(city.attributes.stateID);
                                     // 7
                                     segInfo.stateName = state.name;
                                 }
@@ -1257,7 +1257,7 @@
                     var state = $(getEditFormControlName('state'));
                     if (state && curRequest.statecode && state.val() && (state.val() != curRequest.statecode))
                     {
-                        state.each(function() {
+                        state.children().each(function() {
                             if (this.value == curRequest.statecode) {
                                 state.val(curRequest.statecode).change();
                             }
