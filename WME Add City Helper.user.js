@@ -1,12 +1,13 @@
 // ==UserScript==
 // @name         WME Add City Helper
 // @namespace    madnut.ua@gmail.com
-// @version      0.6.7
+// @version      0.6.8
 // @description  Helps to add cities using WME Requests spreadsheet
 // @author       madnut
 // @include      https://*waze.com/*editor*
 // @exclude      https://*waze.com/*user/editor*
 // @connect      google.com
+// @connect      script.google.com
 // @connect      script.googleusercontent.com
 // @connect      localhost
 // @connect      wazeolenta.org
@@ -24,7 +25,7 @@
     var minZoomLevel = 4;
     var minAnalyzerVersion = 200; // Ukraine's MinRegion Analyzer minimum version required to work properly with the script
     var analyzerUrl = 'http://wazeolenta.org/api/uk/mr/GetSuggestedCityName';
-    //var analyzerUrl = 'http://localhost:8080/api/uk/mr/GetSuggestedCityName';
+    //var analyzerUrl = 'http://localhost:51672/api/uk/mr/GetSuggestedCityName';
     var config = {
         BO: {
             "country": "Беларусь",
@@ -813,7 +814,7 @@
                 var segInfo = getSegmentInfo();
 
                 curRequest.addedcity = segInfo.cityName;
-                curRequest.note = prompt('Причина отказа?', 'Такой НП уже существует.');
+                curRequest.note = prompt('Причина отказа?', document.getElementById('achMRResponseStatus').innerHTML.match(/City eliminated/i) ? 'НП Ліквідовано' : 'Такой НП уже существует.');
 
                 if (curRequest.note !== null) {
                     var url = cfg.apiUrl + '?func=processRequest&row=' + curRequest.row + '&user=' + user + '&addedcity=' + curRequest.addedcity + '&action=decline' + '&stateid=' + segInfo.stateID + '&note=' + curRequest.note;
@@ -990,6 +991,10 @@
                 W.model.events.unregister("mergeend", null, mergeend);
 
                 if (lnk.segments) {
+                    // autoselect for bot generated links
+                    if (lnk.segments == "-101") {
+                        lnk.segments = Object.keys(W.model.segments.objects)[0];
+                    }
                     // if we have multiple selection
                     var segArray = lnk.segments.split(",");
                     var objects = [];
