@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WME Add City Helper
 // @namespace    madnut.ua@gmail.com
-// @version      0.6.8
+// @version      0.6.9
 // @description  Helps to add cities using WME Requests spreadsheet
 // @author       madnut
 // @include      https://*waze.com/*editor*
@@ -991,9 +991,25 @@
                 W.model.events.unregister("mergeend", null, mergeend);
 
                 if (lnk.segments) {
-                    // autoselect for bot generated links
-                    if (lnk.segments == "-101") {
-                        lnk.segments = Object.keys(W.model.segments.objects)[0];
+                    // autoselect any visible segment for bot generated links
+                    if (lnk.segments == "-101") {                        
+                        //lnk.segments = Object.keys(W.model.segments.objects)[0];
+                        var segments = W.model.segments.objects;
+                        var mapExtent = W.map.getExtent();
+                        
+                        for (var s in segments) {
+                            if (!segments.hasOwnProperty(s)) {
+                                continue;
+                            }
+                        
+                            var seg = W.model.segments.get(s);
+                            if (mapExtent.intersectsBounds(seg.geometry.getBounds())) {
+                                debugger;
+                                lnk.segments = s;
+                                // one is enough for now
+                                break;
+                            }
+                        } 
                     }
                     // if we have multiple selection
                     var segArray = lnk.segments.split(",");
