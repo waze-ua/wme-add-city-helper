@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WME Add City Helper
 // @namespace    madnut.ua@gmail.com
-// @version      0.6.9
+// @version      0.6.10
 // @description  Helps to add cities using WME Requests spreadsheet
 // @author       madnut
 // @include      https://*waze.com/*editor*
@@ -414,8 +414,15 @@
                     document.getElementById('achApplyRequestedCity').onclick = function() {
                         var cityName = document.getElementById('achRequestedCity').value;
                         if (cityName !== '' && cityName !== 'N/A') {
-                            var cutCity = cityName.split('(')[0].trim();
-
+                            var cutCity = cityName;
+                            // for cases, like "City (Region1) (Region2" - cut only last region
+                            var regx = /\s\(\w+$/;
+                            if (cityName.match(regx)) {
+                                cutCity = cityName.replace(regx, "").trim();
+                            }
+                            else {
+                                cutCity = cityName.split('(')[0].trim();
+                            }
                             changeCity(cutCity, false);
 
                             // display it bold and red
@@ -1004,7 +1011,7 @@
                         
                             var seg = W.model.segments.get(s);
                             if (mapExtent.intersectsBounds(seg.geometry.getBounds())) {
-                                debugger;
+                                //debugger;
                                 lnk.segments = s;
                                 // one is enough for now
                                 break;
