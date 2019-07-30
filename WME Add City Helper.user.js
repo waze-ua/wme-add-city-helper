@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WME Add City Helper
 // @namespace    madnut.ua@gmail.com
-// @version      0.6.10
+// @version      0.6.11
 // @description  Helps to add cities using WME Requests spreadsheet
 // @author       madnut
 // @include      https://*waze.com/*editor*
@@ -152,14 +152,18 @@
             var tooltipText = "Количество&nbsp;необработанных запросов&nbsp;НП.&nbsp;Нажмите, чтобы&nbsp;перейти&nbsp;к&nbsp;первому.";
 
             var $outputElemContainer = $('<div>', { id: 'achCountContainer',
-                                                   style: 'white-space:nowrap; cursor:pointer; position:relative; border-radius:23px; height:23px; display:inline; float:right; padding-left:10px; padding-right:10px; margin:9px 5px 8px 5px; font-weight:bold; font-size:medium;'});
+                                                    class: 'toolbar-button',
+                                                    style: 'font-weight: bold; font-size: 16px; border-radius: 10px; padding-right: 10px; padding-left: 10px;'
+                                                  });
             var $spinnerElem = $('<i>', { id: 'achSpinner',
-                                         style: 'display:inline-block; position:relative; left:-3px;',
-                                         class: '' });
+                                          style: 'display:inline-block; position:relative; left:-3px;',
+                                          class: ''
+                                        });
             var $outputElem = $('<span>', { id: 'achCount',
                                            click: getCityRequest,
                                            style: 'text-decoration:none',
-                                           'data-original-title': tooltipText});
+                                           'data-original-title': tooltipText
+                                          });
             $outputElemContainer.append($spinnerElem);
             $outputElemContainer.append($outputElem);
 
