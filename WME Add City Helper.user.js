@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WME Add City Helper
 // @namespace    madnut.ua@gmail.com
-// @version      0.6.11
+// @version      0.6.12
 // @description  Helps to add cities using WME Requests spreadsheet
 // @author       madnut
 // @include      https://*waze.com/*editor*
@@ -17,6 +17,10 @@
 // @downloadURL  https://github.com/madnut-ua/wme_addcityhelper/raw/master/WME%20Add%20City%20Helper.user.js
 // @supportURL   https://github.com/madnut-ua/wme_addcityhelper/issues
 // ==/UserScript==
+
+/* global W */
+/* global $ */
+/* global OL */
 
 (function() {
     'use strict';
@@ -65,19 +69,20 @@
     }
 
     function ACHelper_bootstrap() {
-        if (typeof W === "undefined" ||
-            typeof W.map === "undefined" ||
-            typeof W.selectionManager === "undefined" ||
-            typeof W.model.countries === "undefined" ||
-            typeof W.model.countries.top === "undefined" ||
-            typeof I18n === "undefined" ||
-            typeof I18n.translations === "undefined") {
+        if (W &&
+            W.loginManager &&
+            W.loginManager.user &&
+            W.map &&
+            W.selectionManager &&
+            W.model &&
+            W.model.countries &&
+            W.model.countries.getObjectArray().length) {
+            ACHelper_init();
+            log('started');
+        } else {
+            log('bootstrap failed. Trying again...');
             setTimeout(ACHelper_bootstrap, 700);
-            return;
         }
-        ACHelper_init();
-
-        log("started");
     }
 
     function ACHelper_init() {
@@ -179,7 +184,7 @@
         }
 
         function drawTab() {
-            var cfg =  config[W.model.countries.top.abbr];
+            var cfg = config[W.model.countries.top.abbr];
 
             if (!cfg) {
                 // country is not supported
@@ -537,7 +542,7 @@
                     return false;
                 };
                 document.getElementById('achMinRegionSection').style.display = cfg.code == "232" ? 'block' : 'none';
-                
+
                 // update data
                 updateRequestInfo();
                 updateRequestStatus();
@@ -796,7 +801,7 @@
                 }
 
                 if (curRequest.note !== null) {
-                    var url = cfg.apiUrl + '?func=processRequest&row=' + curRequest.row + '&user=' + user + '&addedcity=' + curRequest.addedcity + '&action=approve' + '&stateid=' + segInfo.stateID + '&note=' + curRequest.note;
+                    var url = cfg.apiUrl + '?func=processRequest&row=' + curRequest.row + '&user=' + user + '&addedcity=' + curRequest.addedcity + '&action=approve&stateid=' + segInfo.stateID + '&note=' + curRequest.note;
                     sendHTTPRequest(url, 'achApproveRequest', 'fa fa-thumbs-up', requestCallback);
                 }
             }
@@ -828,7 +833,7 @@
                 curRequest.note = prompt('Причина отказа?', document.getElementById('achMRResponseStatus').innerHTML.match(/City eliminated/i) ? 'НП Ліквідовано' : 'Такой НП уже существует.');
 
                 if (curRequest.note !== null) {
-                    var url = cfg.apiUrl + '?func=processRequest&row=' + curRequest.row + '&user=' + user + '&addedcity=' + curRequest.addedcity + '&action=decline' + '&stateid=' + segInfo.stateID + '&note=' + curRequest.note;
+                    var url = cfg.apiUrl + '?func=processRequest&row=' + curRequest.row + '&user=' + user + '&addedcity=' + curRequest.addedcity + '&action=decline&stateid=' + segInfo.stateID + '&note=' + curRequest.note;
                     sendHTTPRequest(url, 'achDeclineRequest', 'fa fa-thumbs-down', requestCallback);
                 }
             }
@@ -1003,16 +1008,16 @@
 
                 if (lnk.segments) {
                     // autoselect any visible segment for bot generated links
-                    if (lnk.segments == "-101") {                        
+                    if (lnk.segments == "-101") {
                         //lnk.segments = Object.keys(W.model.segments.objects)[0];
                         var segments = W.model.segments.objects;
                         var mapExtent = W.map.getExtent();
-                        
+
                         for (var s in segments) {
                             if (!segments.hasOwnProperty(s)) {
                                 continue;
                             }
-                        
+
                             var seg = W.model.segments.get(s);
                             if (mapExtent.intersectsBounds(seg.geometry.getBounds())) {
                                 //debugger;
@@ -1020,7 +1025,7 @@
                                 // one is enough for now
                                 break;
                             }
-                        } 
+                        }
                     }
                     // if we have multiple selection
                     var segArray = lnk.segments.split(",");
@@ -1227,13 +1232,15 @@
         }
 
         function getElementsByClassName(classname, node) {
-            if (!node)
+            if (!node) {
                 node = document.getElementsByTagName("body")[0];
+            }
             var a = [];
             var re = new RegExp('\\b' + classname + '\\b');
             var els = node.getElementsByTagName("*");
-            for (var i = 0, j = els.length; i < j; i++)
+            for (var i = 0, j = els.length; i < j; i++) {
                 if (re.test(els[i].className)) a.push(els[i]);
+            }
             return a;
         }
 
@@ -1332,7 +1339,7 @@
         panelObserver.observe(document.getElementById('edit-panel'), { childList: true, subtree: true });
 
         W.map.events.register("moveend", null, drawTab);
-        
+
         // need to call in case if it's permalink
         drawTab();
         drawIndicator();
