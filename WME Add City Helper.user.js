@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WME Add City Helper
 // @namespace    madnut.ua@gmail.com
-// @version      0.6.12
+// @version      0.6.13
 // @description  Helps to add cities using WME Requests spreadsheet
 // @author       madnut
 // @include      https://*waze.com/*editor*
@@ -308,8 +308,8 @@
                             '<i class="fa fa-forward"></i>' +
                             '</button>' +
                             // goto table cell
-                            '<button id="achGotoTableCell" class="btn-link" type="button" title="Перейти к запросу в таблице" style="">' +
-                            '<i class="fa fa-external-link"></i>&nbsp;Перейти к запросу в таблице' +
+                            '<button id="achGotoTableCell" class="btn-link" type="button" title="Перейти к таблице запросов" style="">' +
+                            '<i class="fa fa-external-link"></i>&nbsp;Перейти к таблице запросов' +
                             '</button>' +
                             '</div>' +
                             '</div>' +
@@ -528,8 +528,12 @@
                     return false;
                 };
                 document.getElementById('achGotoTableCell').onclick = function() {
+                    var loc = cfg.requestsTable;
+                    if (curRequest.requestedcity) {
+                        loc = loc + '&range=' + curRequest.row + ':' + curRequest.row;
+                    }
                     var w = window.open();
-                    w.location = cfg.requestsTable + '&range=' + curRequest.row + ':' + curRequest.row;
+                    w.location = loc;
                 };
                 // Ukraine related
                 document.getElementById('achApplySuggestedCity').disabled = true;
@@ -580,7 +584,6 @@
                 document.getElementById('achRequestedCity').value = "N/A";
                 document.getElementById('achJumpToRequest').disabled = true;
                 document.getElementById('achApplyRequestedCity').disabled = true;
-                document.getElementById('achGotoTableCell').disabled = true;
 
                 drawCityBorder(null, null);
             }
