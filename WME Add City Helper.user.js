@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WME Add City Helper
 // @namespace    madnut.ua@gmail.com
-// @version      0.6.13
+// @version      0.6.14
 // @description  Helps to add cities using WME Requests spreadsheet
 // @author       madnut
 // @include      https://*waze.com/*editor*
@@ -10,7 +10,7 @@
 // @connect      script.google.com
 // @connect      script.googleusercontent.com
 // @connect      localhost
-// @connect      wazeolenta.org
+// @connect      wazeolenta.com
 // @grant        GM_xmlhttpRequest
 // @grant        GM_setClipboard
 // @updateURL    https://github.com/madnut-ua/wme_addcityhelper/raw/master/WME%20Add%20City%20Helper.user.js
@@ -28,7 +28,7 @@
     var requestsTimeout = 30000; // in ms
     var minZoomLevel = 4;
     var minAnalyzerVersion = 200; // Ukraine's MinRegion Analyzer minimum version required to work properly with the script
-    var analyzerUrl = 'http://wazeolenta.org/api/uk/mr/GetSuggestedCityName';
+    var analyzerUrl = 'http://wazeolenta.com/wzl/api/uk/mr/GetSuggestedCityName';
     //var analyzerUrl = 'http://localhost:51672/api/uk/mr/GetSuggestedCityName';
     var config = {
         BO: {

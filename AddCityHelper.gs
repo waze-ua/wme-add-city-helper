@@ -1,10 +1,12 @@
 // ==AppsScript==
 // @name         Add City Helper
-// @version      0.2.3
+// @version      0.2.4
 // @description  API for processing requests directly from WME
 // @author       madnut
 // @email        madnut.ua@gmail.com
 // ==/AppsScript==
+
+var sheetId = "1C6P-VmSTR2KTS9LMIFZFQyf7r57ki9Mzi7B-HNwjBbM";
 
 function ch2index(letter) {
   var column = 0,
@@ -34,8 +36,8 @@ function doGet(e) {
   var resultString = {};
 
   if (!funcName) {
-    // compatibility with old WME Requests (Save L5)
-    return sendLevel5(e);
+    // compatibility with old WME Requests (Save L6)
+    return sendLevel6(e);
   }
 
   switch (funcName) {
@@ -49,10 +51,11 @@ function doGet(e) {
     resultString = processRequest(e.parameter.row, e.parameter.user, e.parameter.action, e.parameter.note, e.parameter.addedcity, e.parameter.stateid);
     break;
   case "sendEmail":
-    resultString = sendEmail(e.parameter.row);
+    var sheet = SpreadsheetApp.openById(sheetId);
+    resultString = sendEmail(e.parameter.row, sheet);
     break;
   case "saveLevel5":
-    return sendLevel5(e);
+    return sendLevel6(e);
     break;
   default:
     resultString = {
@@ -66,7 +69,7 @@ function doGet(e) {
 }
 
 function _getSpreadsheet() {
-  var sheet = SpreadsheetApp.getActiveSpreadsheet();
+  var sheet = SpreadsheetApp.openById(sheetId);
 
   var sheetName = "Ответы на форму (1)";
   var sheetObj = sheet.getSheetByName(sheetName);
