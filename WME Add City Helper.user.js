@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WME Add City Helper
 // @namespace    madnut.ua@gmail.com
-// @version      0.6.14
+// @version      0.6.15
 // @description  Helps to add cities using WME Requests spreadsheet
 // @author       madnut
 // @include      https://*waze.com/*editor*
@@ -158,7 +158,7 @@
 
             var $outputElemContainer = $('<div>', { id: 'achCountContainer',
                                                     class: 'toolbar-button',
-                                                    style: 'font-weight: bold; font-size: 16px; border-radius: 10px; padding-right: 10px; padding-left: 10px;'
+                                                    style: 'font-weight: bold; font-size: 13px; line-height: 13px; border-radius: 10px; padding-right: 10px; padding-left: 10px;'
                                                   });
             var $spinnerElem = $('<i>', { id: 'achSpinner',
                                           style: 'display:inline-block; position:relative; left:-3px;',
