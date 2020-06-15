@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WME Add City Helper
 // @namespace    madnut.ua@gmail.com
-// @version      0.6.14
+// @version      0.6.15
 // @description  Helps to add cities using WME Requests spreadsheet
 // @author       madnut
 // @include      https://*waze.com/*editor*
@@ -109,7 +109,7 @@
             return;
         }
 
-        var bordersLayer = new OL.Layer.Vector("City Borders", {
+        var bordersLayer = new OpenLayers.Layer.Vector("City Borders", {
             displayInLayerSwitcher: true,
             uniqueName: "ACHBorders"
         });
@@ -127,15 +127,15 @@
                         var polyPoints = new Array(itemsB.length);
                         itemsB.forEach(function(itemsC, k, arr) {
 
-                            polyPoints[k] = new OL.Geometry.Point(itemsC[0], itemsC[1]).transform(
-                                new OL.Projection("EPSG:4326"), // transform from WGS 1984
+                            polyPoints[k] = new OpenLayers.Geometry.Point(itemsC[0], itemsC[1]).transform(
+                                new OpenLayers.Projection("EPSG:4326"), // transform from WGS 1984
                                 W.map.getProjectionObject() // to Spherical Mercator Projection
                             );
                         });
-                        var polygon = new OL.Geometry.Polygon(new OL.Geometry.LinearRing(polyPoints));
+                        var polygon = new OpenLayers.Geometry.Polygon(new OpenLayers.Geometry.LinearRing(polyPoints));
                         var site_style = new borderStyle('#FFFF00', cityname);
 
-                        var poly = new OL.Feature.Vector(polygon, null, site_style);
+                        var poly = new OpenLayers.Feature.Vector(polygon, null, site_style);
                         bordersLayer.addFeatures(poly);
                     });
                 });
@@ -739,7 +739,7 @@
                 log("MinRegion check by object Centroid");
 
                 var centroid = selectedItem.geometry.getCentroid(true); // without "true" it will return start point as a centroid
-                lnk = OL.Layer.SphericalMercator.inverseMercator(centroid.x, centroid.y);
+                lnk = OpenLayers.Layer.SphericalMercator.inverseMercator(centroid.x, centroid.y);
             }
             else if (curRequest.permalink) {
                 log("MinRegion check by request permalink");
@@ -1053,7 +1053,7 @@
             W.model.events.register("mergestart", null, mergestart);
 
             W.selectionManager.unselectAll();
-            var xy = OL.Layer.SphericalMercator.forwardMercator(parseFloat(lnk.lon), parseFloat(lnk.lat));
+            var xy = OpenLayers.Layer.SphericalMercator.forwardMercator(parseFloat(lnk.lon), parseFloat(lnk.lat));
             W.map.setCenter(xy, (lnk.zoom && lnk.zoom > 3 ? parseInt(lnk.zoom) : minZoomLevel));
         }
 
@@ -1128,7 +1128,7 @@
 
                     // generate permalink
                     var centroid = selectedItem.geometry.getCentroid(true); // without "true" it will return start point as a centroid
-                    var lnk = OL.Layer.SphericalMercator.inverseMercator(centroid.x, centroid.y);
+                    var lnk = OpenLayers.Layer.SphericalMercator.inverseMercator(centroid.x, centroid.y);
                     // 9
                     segInfo.permalink = location.origin + location.pathname + "?env=row&lon=" + lnk.lon + "&lat=" + lnk.lat + "&zoom=4&segments=" + attr.id;
                 }
