@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WME Add City Helper
 // @namespace    madnut.ua@gmail.com
-// @version      0.6.16
+// @version      0.6.17
 // @description  Helps to add cities using WME Requests spreadsheet
 // @author       madnut
 // @include      https://*waze.com/*editor*
@@ -20,7 +20,7 @@
 
 /* global W */
 /* global $ */
-/* global OL */
+/* global OpenLayers */
 
 (function() {
     'use strict';
@@ -103,7 +103,7 @@
             'achAutoGoNextRequest': (localStorage.getItem('achAutoGoNextRequest') == 'true'),
             'achAutoSaveCity': (localStorage.getItem('achAutoSaveCity') == 'true')
         };
-        var editPanel = $("#edit-panel");
+        var editPanel = document.querySelector('#edit-panel');
         if (!editPanel) {
             setTimeout(ACHelper_init, 800);
             return;
@@ -1197,7 +1197,7 @@
             }
 
             $('#achCountContainer').css('background-color', bgColor);
-            $('#achCount').css('color', textColor).html('Запросы НП: ' + count);
+            $('#achCount').css('color', textColor).html(count > 0 ? 'Запросы НП: ' + count : count);
             $('#achSpinner').css('color', textColor);
         }
 
