@@ -1,1 +1,1 @@
-# wme_addcityhelper
+# wme_add-city-helper
