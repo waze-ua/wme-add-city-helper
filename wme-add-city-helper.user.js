@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WME Add City Helper
-// @namespace    madnut.ua@gmail.com
-// @version      0.6.17
+// @namespace    waze-ua
+// @version      2022.08.02.001
 // @description  Helps to add cities using WME Requests spreadsheet
 // @author       madnut
 // @include      https://*waze.com/*editor*
@@ -13,23 +13,26 @@
 // @connect      wazeolenta.com
 // @grant        GM_xmlhttpRequest
 // @grant        GM_setClipboard
-// @updateURL    https://github.com/madnut-ua/wme_addcityhelper/raw/master/WME%20Add%20City%20Helper.user.js
-// @downloadURL  https://github.com/madnut-ua/wme_addcityhelper/raw/master/WME%20Add%20City%20Helper.user.js
-// @supportURL   https://github.com/madnut-ua/wme_addcityhelper/issues
+// @updateURL    https://github.com/waze-ua/wme-add-city-helper/raw/main/wme-add-city-helper.user.js
+// @downloadURL  https://github.com/waze-ua/wme-add-city-helper/raw/main/wme-add-city-helper.user.js
+// @supportURL   https://github.com/waze-ua/wme-add-city-helper/issues
 // ==/UserScript==
+
+/* jshint -W033 */
+/* jshint esversion: 11 */
 
 /* global W */
 /* global $ */
 /* global OpenLayers */
 
-(function() {
+(function () {
     'use strict';
 
     var requestsTimeout = 30000; // in ms
-    var minZoomLevel = 4;
+    var minZoomLevel = 16;
     var minAnalyzerVersion = 200; // Ukraine's MinRegion Analyzer minimum version required to work properly with the script
     var analyzerUrl = 'http://wazeolenta.com/wzl/api/uk/mr/GetSuggestedCityName';
-    //var analyzerUrl = 'http://localhost:51672/api/uk/mr/GetSuggestedCityName';
+    //var analyzerUrl = 'http://localhost:5050/api/uk/mr/GetSuggestedCityName';
     var config = {
         BO: {
             "country": "Беларусь",
@@ -116,16 +119,15 @@
 
         W.map.addLayer(bordersLayer);
 
-        function drawCityBorder(cityname, coords)
-        {
+        function drawCityBorder(cityname, coords) {
             bordersLayer.destroyFeatures();
             if (coords) {
                 var gm = JSON.parse(coords);
 
-                gm.coords.forEach(function(itemsA, i, arr) {
-                    itemsA.forEach(function(itemsB, j, arr) {
+                gm.coords.forEach(function (itemsA, i, arr) {
+                    itemsA.forEach(function (itemsB, j, arr) {
                         var polyPoints = new Array(itemsB.length);
-                        itemsB.forEach(function(itemsC, k, arr) {
+                        itemsB.forEach(function (itemsC, k, arr) {
 
                             polyPoints[k] = new OpenLayers.Geometry.Point(itemsC[0], itemsC[1]).transform(
                                 new OpenLayers.Projection("EPSG:4326"), // transform from WGS 1984
@@ -154,28 +156,31 @@
         }
 
         function drawIndicator() {
-            var tooltipText = "Количество&nbsp;необработанных запросов&nbsp;НП.&nbsp;Нажмите, чтобы&nbsp;перейти&nbsp;к&nbsp;первому.";
+            var tooltipText = "Кількість&nbsp;неопрацьованих запитів&nbsp;НП.&nbsp;Клацніть, щоб&nbsp;перейти&nbsp;до&nbsp;першого.";
 
-            var $outputElemContainer = $('<div>', { id: 'achCountContainer',
-                                                    class: 'toolbar-button',
-                                                    style: 'font-weight: bold; font-size: 13px; line-height: 13px; border-radius: 10px; padding-right: 10px; padding-left: 10px;'
-                                                  });
-            var $spinnerElem = $('<i>', { id: 'achSpinner',
-                                          style: 'display:inline-block; position:relative; left:-3px;',
-                                          class: ''
-                                        });
-            var $outputElem = $('<span>', { id: 'achCount',
-                                           click: getCityRequest,
-                                           style: 'text-decoration:none',
-                                           'data-original-title': tooltipText
-                                          });
+            var $outputElemContainer = $('<div>', {
+                id: 'achCountContainer',
+                class: 'toolbar-button',
+                style: 'font-weight: bold; font-size: 13px; line-height: 13px; border-radius: 10px; padding-right: 10px; padding-left: 10px;'
+            });
+            var $spinnerElem = $('<i>', {
+                id: 'achSpinner',
+                style: 'display:inline-block; position:relative; left:-3px;',
+                class: ''
+            });
+            var $outputElem = $('<span>', {
+                id: 'achCount',
+                click: getCityRequest,
+                style: 'text-decoration:none',
+                'data-original-title': tooltipText
+            });
             $outputElemContainer.append($spinnerElem);
             $outputElemContainer.append($outputElem);
 
             $('#edit-buttons').children().first().append($outputElemContainer);
             $outputElem.tooltip({
                 placement: 'auto top',
-                delay: {show: 100, hide: 100},
+                delay: { show: 100, hide: 100 },
                 html: true,
                 template: '<div class="tooltip" role="tooltip" style="opacity:0.95"><div class="tooltip-arrow"></div><div class="my-tooltip-header"><b></b></div><div class="my-tooltip-body tooltip-inner" style="font-weight:600; !important"></div></div>'
             });
@@ -183,244 +188,241 @@
             getRequestsCount();
         }
 
+        function activateTab() {
+            let shRoot = document.querySelector('wz-tabs').shadowRoot;
+            if (shRoot && shRoot.innerHTML) {
+                let tabs = shRoot.querySelectorAll('div.wz-tab-label');
+                for (let i = 0; i < tabs.length; i++) {
+                    if (tabs[i].innerText == "ACH") {
+                        tabs[i].click();
+                    }
+                }
+            }
+        }
+
         function drawTab() {
             var cfg = config[W.model.countries.top.abbr];
-
             if (!cfg) {
                 // country is not supported
                 return;
             }
 
-            var panelID = "WME-ACH";
+            var panelID = "ach-tab";
             var sItems = W.selectionManager.getSelectedFeatures();
-            if (!document.getElementById(panelID) && sItems.length > 0 && sItems[0].model.type === 'segment') {
+            if (!document.querySelector('wz-tab.' + panelID) && sItems.length > 0 && sItems[0].model.type === 'segment') {
                 var unsavedChanges = W.model.actionManager.unsavedActionsNum() > 0;
                 var segInfo = getSegmentInfo();
-                var panelElement = document.createElement('div');
-                panelElement.id = panelID;
-
+                var panelElement = document.createElement('wz-tab');
                 var userTabs = document.getElementById('edit-panel');
                 if (!userTabs) {
                     return;
                 }
 
-                var navTabs = getElementsByClassName('nav-tabs', userTabs)[0];
-                if (typeof navTabs !== "undefined") {
-                    var tabContent = getElementsByClassName('tab-content', userTabs)[0];
+                var navTabs = userTabs.getElementsByTagName('wz-tabs')[0];
+                if (navTabs) {
+                    var html =
+                        '<wz-label>WME Add City Helper v' + GM_info.script.version + '</wz-label>' +
+                        // block 0
+                        '<div class="form-group">' +
+                        '<label class="control-label">Інформація про сегмент</label>' +
+                        '<div class="additional-attributes">' +
+                        '<label style="font-weight: bold;">City ID:&nbsp;</label>' +
+                        '<span id="achCityID">' + (segInfo.cityID ? segInfo.cityID : 'N/A') +
+                        '</span>' +
+                        '<button id="achCopyCityID" class="btn-link" type="button" title="Скопіювати у буфер" style="height: auto;">' +
+                        '<i class="fa fa-clipboard"></i>' +
+                        '</button>' +
+                        '<span id="achCityName" style="color: ' + (segInfo.cityName && unsavedChanges && segInfo.status === "Update" ? '#e54444' : '#000000') + ';">' + (segInfo.cityName ? segInfo.cityName : 'N/A') +
+                        '</span>' +
+                        '</br>' +
+                        '<label style="font-weight: bold;">State ID:&nbsp;</label>' +
+                        '<span id="achStateID">' + (segInfo.stateID ? segInfo.stateID : 'N/A') +
+                        '</span>' +
+                        '<button id="achCopyStateID" class="btn-link" type="button" title="Скопіювати у буфер" style="height: auto;">' +
+                        '<i class="fa fa-clipboard"></i>' +
+                        '</button>' +
+                        '<span id="achStateName" style="color: ' + (segInfo.stateName && unsavedChanges && segInfo.status === "Update" ? '#e54444' : '#000000') + ';">' + (segInfo.stateName ? segInfo.stateName : 'N/A') +
+                        '</span>' +
+                        '</div>' +
+                        '</div>' +
+                        // end 0
+                        // block 1
+                        '<div class="form-group">' +
+                        '<div style="float:right; z-index:100; cursor:pointer; top:0; right:0;" id="achClearRequest" title="Очистити дані про запит"><i class="fa fa-times-circle fa-lg" aria-hidden="true"></i></div>' +
+                        '<label class="control-label">Поточний запит НП</label>' +
+                        // city
+                        '<div class="controls input-group">' +
+                        // goto button
+                        '<span class="input-group-btn">' +
+                        '<button id="achJumpToRequest" class="btn btn-primary" type="button" data-original-title="" title="Перейти до сегмента" style="padding: 0 8px; border-bottom-right-radius: 0; border-top-right-radius: 0; font-size: 16px">' +
+                        '<i class="fa fa-crosshairs"></i>' +
+                        '</button>' +
+                        '</span>' +
+                        '<input class="form-control" autocomplete="off" maxlength="100" id="achRequestedCity" name="" title="Назва НП, що запросили" type="text" value="N/A" readonly="readonly" />' +
+                        // apply button
+                        '<span class="input-group-btn">' +
+                        '<button id="achApplyRequestedCity" class="btn btn-primary" type="button" data-original-title="" title="Додати цю назву у поле вводу" style="padding: 0 8px; border-bottom-left-radius: 0; border-top-left-radius: 0; font-size: 16px">' +
+                        '<i class="fa fa-paw"></i>' +
+                        '</button>' +
+                        '</span>' +
+                        '</div>' +
+                        '</div>' +
+                        // author
+                        '<div class="form-group">' +
+                        '<label class="control-label">Автор</label>' +
+                        '<div class="controls">' +
+                        '<span id="achAuthor">N/A</span></br>' +
+                        '</div>' +
+                        '</div>' +
+                        // status
+                        '<div class="form-group">' +
+                        '<label class="control-label">Статус</label>' +
+                        '<div class="controls">' +
+                        '<span id="achStatus" style="font-weight: bold;">N/A</span>' +
+                        '</div>' +
+                        '</div>' +
+                        // actions
+                        '<div class="form-group">' +
+                        '<label class="control-label">Дії з запитом</label>' +
+                        '<div class="controls">' +
+                        '<div class="btn-toolbar">' +
+                        // lock request
+                        '<button id="achLockRequest" class="btn btn-info" type="button" title="Взяти запит в обробку (залочити)" style="font-size: 16px; padding: 6px 16px;">' +
+                        '<i class="fa fa-lock"></i>' +
+                        '</button>' +
+                        // approve
+                        '<div class="btn-group">' +
+                        '<button id="achApproveRequest" class="btn btn-success" type="button" title="Підтвердити запит" style="font-size: 16px; padding: 6px 14px;">' +
+                        '<i class="fa fa-thumbs-up"></i>' +
+                        '</button>' +
+                        '<button id="achApproveRequestDd" type="button" class="btn btn-success dropdown-toggle" data-toggle="dropdown" style="padding: 6px;">' +
+                        '<span class="caret"></span>' +
+                        '</button>' +
+                        '<ul class="dropdown-menu" role="menu">' +
+                        '<li><a id="achApproveWithComment" href="#"><i class="fa fa-plus"></i>&nbsp;Коментар</a></li>' +
+                        '</ul>' +
+                        '</div>' +
+                        // decline
+                        '<button id="achDeclineRequest" class="btn btn-danger" type="button" title="Відмовити" style="font-size: 16px; padding: 6px 16px;">' +
+                        '<i class="fa fa-thumbs-down"></i>' +
+                        '</button>' +
+                        // send email
+                        '<button id="achSendEmail" class="btn btn-default" type="button" title="Відправити листа" style="font-size: 16px; padding: 6px 16px;">' +
+                        '<i class="fa fa-envelope-o"></i>' +
+                        '</button>' +
+                        // skip request
+                        '<button id="achSkipRequest" class="btn btn-warning" type="button" title="Перейти до наступного запиту" style="font-size: 16px; padding: 6px 16px;">' +
+                        '<i class="fa fa-forward"></i>' +
+                        '</button>' +
+                        // goto table cell
+                        '<button id="achGotoTableCell" class="btn-link" type="button" title="Перейти до таблиці запитів" style="">' +
+                        '<i class="fa fa-external-link"></i>&nbsp;Перейти до таблиці запитів' +
+                        '</button>' +
+                        '</div>' +
+                        '</div>' +
+                        '</div>' +
+                        // end 1
 
-                    if (typeof tabContent !== "undefined") {
-                        var newtab = document.createElement('li');
-                        newtab.innerHTML = '<a href="#' + panelID + '" id="achTab" data-toggle="tab">ACH</a>';
-                        navTabs.appendChild(newtab);
+                        // Level 5 save
+                        '<div class="form-group">' +
+                        '<label class="control-label">Інші дії</label>' +
+                        '<div class="controls">' +
+                        '<button id="achSaveLevel5" class="action-button btn btn-positive btn-success" type="button" title="L5 Save: Зберегти інформацію про створений НП у таблиці Level 5">' +
+                        '<i class="fa fa-save"></i>&nbsp;Створив НП без запиту' +
+                        '</button>' +
+                        '</div>' +
+                        '</div>';
 
-                        var html =
-                            '<h5>WME Add City Helper <sup>' + GM_info.script.version + '</h5>' +
-                            // block 0
-                            '<div class="form-group">' +
-                            '<label class="control-label">Информация о сегменте</label>' +
-                            '<div class="additional-attributes">' +
-                            '<label style="font-weight: bold;">City ID:&nbsp;</label>' +
-                            '<span id="achCityID">' + (segInfo.cityID ? segInfo.cityID : 'N/A') +
-                            '</span>' +
-                            '<button id="achCopyCityID" class="btn-link" type="button" title="Скопировать в буфер" style="height: auto;">' +
-                            '<i class="fa fa-clipboard"></i>' +
-                            '</button>' +
-                            '<span id="achCityName" style="color: ' + (segInfo.cityName && unsavedChanges && segInfo.status === "Update" ? '#e54444' : '#000000') + ';">' + (segInfo.cityName ? segInfo.cityName : 'N/A') +
-                            '</span>' +
-                            '</br>' +
-                            '<label style="font-weight: bold;">State ID:&nbsp;</label>' +
-                            '<span id="achStateID">' + (segInfo.stateID ? segInfo.stateID : 'N/A') +
-                            '</span>' +
-                            '<button id="achCopyStateID" class="btn-link" type="button" title="Скопировать в буфер" style="height: auto;">' +
-                            '<i class="fa fa-clipboard"></i>' +
-                            '</button>' +
-                            '<span id="achStateName" style="color: ' + (segInfo.stateName && unsavedChanges && segInfo.status === "Update" ? '#e54444' : '#000000') + ';">' + (segInfo.stateName ? segInfo.stateName : 'N/A') +
-                            '</span>' +
-                            '</div>' +
-                            '</div>' +
-                            // end 0
-                            // block 1
-                            '<div class="form-group">' +
-                            '<div style="float:right; z-index:100; cursor:pointer; top:0; right:0;" id="achClearRequest" title="Очистить данные о запросе"><i class="fa fa-times-circle fa-lg" aria-hidden="true"></i></div>' +
-                            '<label class="control-label">Текущий запрос НП</label>' +
-                            // city
-                            '<div class="controls input-group">' +
-                            // goto button
-                            '<span class="input-group-btn">' +
-                            '<button id="achJumpToRequest" class="btn btn-primary" type="button" data-original-title="" title="Перейти к сегменту" style="padding: 0 8px; border-bottom-right-radius: 0; border-top-right-radius: 0; font-size: 16px">' +
-                            '<i class="fa fa-crosshairs"></i>' +
-                            '</button>' +
-                            '</span>' +
-                            '<input class="form-control" autocomplete="off" maxlength="100" id="achRequestedCity" name="" title="Запрошенное имя НП" type="text" value="N/A" readonly="readonly" />' +
-                            // apply button
-                            '<span class="input-group-btn">' +
-                            '<button id="achApplyRequestedCity" class="btn btn-primary" type="button" data-original-title="" title="Вставить это имя в поле ввода" style="padding: 0 8px; border-bottom-left-radius: 0; border-top-left-radius: 0; font-size: 16px">' +
-                            '<i class="fa fa-paw"></i>' +
-                            '</button>' +
-                            '</span>' +
-                            '</div>' +
-                            '</div>' +
-                            // author
-                            '<div class="form-group">' +
-                            '<label class="control-label">Автор</label>' +
-                            '<div class="controls">' +
-                            '<span id="achAuthor">N/A</span></br>' +
-                            '</div>' +
-                            '</div>' +
-                            // status
-                            '<div class="form-group">' +
-                            '<label class="control-label">Статус</label>' +
-                            '<div class="controls">' +
-                            '<span id="achStatus" style="font-weight: bold;">N/A</span>' +
-                            '</div>' +
-                            '</div>' +
-                            // actions
-                            '<div class="form-group">' +
-                            '<label class="control-label">Действия с запросом</label>' +
-                            '<div class="controls">' +
-                            '<div class="btn-toolbar">' +
-                            // lock request
-                            '<button id="achLockRequest" class="btn btn-info" type="button" title="Взять запрос в работу (залочить)" style="font-size: 16px; padding: 6px 16px;">' +
-                            '<i class="fa fa-lock"></i>' +
-                            '</button>' +
-                            // approve
-                            '<div class="btn-group">' +
-                            '<button id="achApproveRequest" class="btn btn-success" type="button" title="Одобрить запрос" style="font-size: 16px; padding: 6px 14px;">' +
-                            '<i class="fa fa-thumbs-up"></i>' +
-                            '</button>' +
-                            '<button id="achApproveRequestDd" type="button" class="btn btn-success dropdown-toggle" data-toggle="dropdown" style="padding: 6px;">' +
-                            '<span class="caret"></span>' +
-                            '</button>' +
-                            '<ul class="dropdown-menu" role="menu">' +
-                            '<li><a id="achApproveWithComment" href="#"><i class="fa fa-plus"></i>&nbsp;Комментарий</a></li>' +
-                            '</ul>' +
-                            '</div>' +
-                            // decline
-                            '<button id="achDeclineRequest" class="btn btn-danger" type="button" title="Отказать" style="font-size: 16px; padding: 6px 16px;">' +
-                            '<i class="fa fa-thumbs-down"></i>' +
-                            '</button>' +
-                            // send email
-                            '<button id="achSendEmail" class="btn btn-default" type="button" title="Отправить письмо" style="font-size: 16px; padding: 6px 16px;">' +
-                            '<i class="fa fa-envelope-o"></i>' +
-                            '</button>' +
-                            // skip request
-                            '<button id="achSkipRequest" class="btn btn-warning" type="button" title="Перейти к следующему запросу" style="font-size: 16px; padding: 6px 16px;">' +
-                            '<i class="fa fa-forward"></i>' +
-                            '</button>' +
-                            // goto table cell
-                            '<button id="achGotoTableCell" class="btn-link" type="button" title="Перейти к таблице запросов" style="">' +
-                            '<i class="fa fa-external-link"></i>&nbsp;Перейти к таблице запросов' +
-                            '</button>' +
-                            '</div>' +
-                            '</div>' +
-                            '</div>' +
-                            // end 1
+                    html +=
+                        // block 2
+                        '<div id="achMinRegionSection">' +
+                        '</br>' +
+                        '<div class="form-group">' +
+                        '<label class="control-label">МінРегіон</label>' +
+                        // check name in MinRegion
+                        '<div class="controls">' +
+                        '<button id="achCheckInMinRegion" class="action-button btn btn-lightning btn-positive" type="button" title="Перевірити назву у МінРегіоні">' +
+                        '<i class="fa fa-map-o"></i>&nbsp;Перевірити' +
+                        '</button>' +
+                        '</div>' +
+                        '</div>' +
+                        // foundName
+                        '<div class="form-group">' +
+                        '<label class="control-label">Згідно МінРегіону тут знаходиться</label>' +
+                        '<div class="controls input-group">' +
+                        '<input class="form-control" autocomplete="off" id="achFoundCity" name="" title="Знайдений НП" type="text" value="N/A" readonly="readonly" />' +
+                        '<span class="input-group-btn">' +
+                        '<button id="achApplyFoundCity" class="btn btn-primary" type="button" data-original-title="" title="Використати цю назву" style="padding: 0 8px; border-bottom-left-radius: 0; border-top-left-radius: 0; font-size: 16px">' +
+                        '<i class="fa fa-paw"></i>' +
+                        '</button>' +
+                        '</span>' +
+                        '</div>' +
+                        '</div>' +
+                        // suggestedName
+                        '<div class="form-group">' +
+                        '<label class="control-label">Назва з урахуванням правил іменування</label>' +
+                        '<div class="controls input-group">' +
+                        '<input class="form-control" autocomplete="off" id="achSuggestedName" name="" title="Запропонована назва для НП" type="text" value="N/A" readonly="readonly" />' +
+                        '<span class="input-group-btn">' +
+                        '<button id="achApplySuggestedCity" class="btn btn-primary" type="button" data-original-title="" title="Використати цю назву" style="padding: 0 8px; border-bottom-left-radius: 0; border-top-left-radius: 0; font-size: 16px">' +
+                        '<i class="fa fa-paw"></i>' +
+                        '</button>' +
+                        '</span>' +
+                        '</div>' +
+                        '</div>' +
+                        // result
+                        '<div class="form-group">' +
+                        '<label class="control-label">Відповідь аналізатора</label>' +
+                        '<div class="controls">' +
+                        '<label style="font-weight: bold;">Статус:&nbsp;</label>' +
+                        '<span id="achMRResponseStatus" style="font-weight: bold;"></span></br>' +
+                        '<label style="font-weight: bold;">Коментарі:</label></br>' +
+                        '<span id="achMRResponseComments"></span>' +
+                        '</div>' +
+                        '</div>' +
+                        '</div>';
+                    // end 2
 
-                            // Level 5 save
-                            '<div class="form-group">' +
-                            '<label class="control-label">Другие действия</label>' +
-                            '<div class="controls">' +
-                            '<button id="achSaveLevel5" class="action-button btn btn-positive btn-success" type="button" title="L5 Save: Сохранить информацию о созданном НП в таблице Level 5">' +
-                            '<i class="fa fa-save"></i>&nbsp;Создал НП без запроса' +
-                            '</button>' +
-                            '</div>' +
-                            '</div>';
+                    // block 3 - settings
+                    html +=
+                        '<div class="form-group">' +
+                        '<div id="achSettingsHeader">' +
+                        '<label class="control-label" style="cursor: pointer;"><i class="fa fa-plus-square" style="margin-right: 5px;"></i>Налаштування</label>' +
+                        '</div>' +
+                        '<div id="achSettingsContent" class="controls" style="border: 1px solid #d3d3d3; padding: 5px; display: none;">' +
+                        '<input type="checkbox" id="achAutoLock" /><label for="achAutoLock" style="margin-bottom: 0px; font-weight: normal;">Авто-лок запиту при отриманні</label><br/>' +
+                        '<input type="checkbox" id="achAutoSendEmail" /><label for="achAutoSendEmail" style="margin-bottom: 0px; font-weight: normal;">Авто-відправка листа при <i class="fa fa-thumbs-up"></i> чи <i class="fa fa-thumbs-down"></i></label><br/>' +
+                        '<input type="checkbox" id="achAutoGoNextRequest" /><label for="achAutoGoNextRequest" style="margin-bottom: 0px; font-weight: normal;">Авто-перехід до наст. запиту</label><br/>' +
+                        '<input type="checkbox" id="achAutoSaveCity" /><label for="achAutoSaveCity" style="margin-bottom: 0px; font-weight: normal;">Авто-збереження НП при <i class="fa fa-thumbs-up"></i></label><br/>' +
+                        '</div>' +
+                        '</div>';
+                    // end 3
 
-                        html +=
-                            // block 2
-                            '<div id="achMinRegionSection">' +
-                            '</br>' +
-                            '<div class="form-group">' +
-                            '<label class="control-label">МинРегион</label>' +
-                            // check name in MinRegion
-                            '<div class="controls">' +
-                            '<button id="achCheckInMinRegion" class="action-button btn btn-lightning btn-positive" type="button" title="Проверить имя в МинРегионе">' +
-                            '<i class="fa fa-map-o"></i>&nbsp;Проверить' +
-                            '</button>' +
-                            '</div>' +
-                            '</div>' +
-                            // foundName
-                            '<div class="form-group">' +
-                            '<label class="control-label">Согласно МинРегиону здесь находится</label>' +
-                            '<div class="controls input-group">' +
-                            '<input class="form-control" autocomplete="off" id="achFoundCity" name="" title="Найденный НП" type="text" value="N/A" readonly="readonly" />' +
-                            '<span class="input-group-btn">' +
-                            '<button id="achApplyFoundCity" class="btn btn-primary" type="button" data-original-title="" title="Использовать это имя" style="padding: 0 8px; border-bottom-left-radius: 0; border-top-left-radius: 0; font-size: 16px">' +
-                            '<i class="fa fa-paw"></i>' +
-                            '</button>' +
-                            '</span>' +
-                            '</div>' +
-                            '</div>' +
-                            // suggestedName
-                            '<div class="form-group">' +
-                            '<label class="control-label">Имя с учетом правил именования</label>' +
-                            '<div class="controls input-group">' +
-                            '<input class="form-control" autocomplete="off" id="achSuggestedName" name="" title="Предложенное имя для НП" type="text" value="N/A" readonly="readonly" />' +
-                            '<span class="input-group-btn">' +
-                            '<button id="achApplySuggestedCity" class="btn btn-primary" type="button" data-original-title="" title="Использовать это имя" style="padding: 0 8px; border-bottom-left-radius: 0; border-top-left-radius: 0; font-size: 16px">' +
-                            '<i class="fa fa-paw"></i>' +
-                            '</button>' +
-                            '</span>' +
-                            '</div>' +
-                            '</div>' +
-                            // result
-                            '<div class="form-group">' +
-                            '<label class="control-label">Ответ анализатора</label>' +
-                            '<div class="controls">' +
-                            '<label style="font-weight: bold;">Статус:&nbsp;</label>' +
-                            '<span id="achMRResponseStatus" style="font-weight: bold;"></span></br>' +
-                            '<label style="font-weight: bold;">Комментарии:</label></br>' +
-                            '<span id="achMRResponseComments"></span>' +
-                            '</div>' +
-                            '</div>' +
-                            '</div>';
-                        // end 2
+                    panelElement.label = "ACH";
+                    panelElement.className = panelID;
+                    panelElement.innerHTML = html;
 
-                        // block 3 - settings
-                        html +=
-                            '<div class="form-group">' +
-                            '<div id="achSettingsHeader">' +
-                            '<label class="control-label" style="cursor: pointer;"><i class="fa fa-plus-square" style="margin-right: 5px;"></i>Настройки</label>' +
-                            '</div>' +
-                            '<div id="achSettingsContent" class="controls" style="border: 1px solid #d3d3d3; padding: 5px; display: none;">' +
-                            '<input type="checkbox" id="achAutoLock" /><label for="achAutoLock" style="margin-bottom: 0px; font-weight: normal;">Авто-лок запроса при получении</label><br/>' +
-                            '<input type="checkbox" id="achAutoSendEmail" /><label for="achAutoSendEmail" style="margin-bottom: 0px; font-weight: normal;">Авто-отправка письма при <i class="fa fa-thumbs-up"></i> или <i class="fa fa-thumbs-down"></i></label><br/>' +
-                            '<input type="checkbox" id="achAutoGoNextRequest" /><label for="achAutoGoNextRequest" style="margin-bottom: 0px; font-weight: normal;">Авто-переход к след. запросу</label><br/>' +
-                            '<input type="checkbox" id="achAutoSaveCity" /><label for="achAutoSaveCity" style="margin-bottom: 0px; font-weight: normal;">Авто-сохранение НП при <i class="fa fa-thumbs-up"></i></label><br/>' +
-                            '</div>' +
-                            '</div>';
-                        // end 3
-
-                        panelElement.innerHTML = html;
-                        panelElement.className = "tab-pane";
-                        tabContent.appendChild(panelElement);
-                    }
-                    else {
-                        panelElement.id = '';
-                    }
-                }
-                else {
-                    panelElement.id = '';
+                    navTabs.appendChild(panelElement);
                 }
 
-                if (panelElement.id !== '') {
-                    document.getElementById('achCopyCityID').onclick = function() {
+                if (panelElement.className) {
+                    document.getElementById('achCopyCityID').onclick = function () {
                         GM_setClipboard(document.getElementById('achCityID').innerHTML);
                     };
-                    document.getElementById('achCopyStateID').onclick = function() {
+                    document.getElementById('achCopyStateID').onclick = function () {
                         GM_setClipboard(document.getElementById('achStateID').innerHTML);
                     };
-                    document.getElementById('achClearRequest').onclick = function() {
+                    document.getElementById('achClearRequest').onclick = function () {
                         curRequest = {};
                         updateRequestInfo();
                         updateRequestStatus();
                     };
-                    document.getElementById('achJumpToRequest').onclick = function() {
+                    document.getElementById('achJumpToRequest').onclick = function () {
                         if (curRequest.permalink) {
                             jumpToLink(curRequest.permalink);
                         }
                     };
-                    document.getElementById('achApplyRequestedCity').onclick = function() {
+                    document.getElementById('achApplyRequestedCity').onclick = function () {
                         var cityName = document.getElementById('achRequestedCity').value;
                         if (cityName !== '' && cityName !== 'N/A') {
                             var cutCity = cityName;
@@ -453,16 +455,16 @@
                     };
                     document.getElementById('achLockRequest').onclick = onLockRequest;
 
-                    document.getElementById('achApproveRequest').onclick = function() {
+                    document.getElementById('achApproveRequest').onclick = function () {
                         onApproveRequest(false);
                     };
-                    document.getElementById('achApproveWithComment').onclick = function(e) {
+                    document.getElementById('achApproveWithComment').onclick = function (e) {
                         onApproveRequest(true);
                         e.preventDefault();
                     };
 
                     document.getElementById('achDeclineRequest').onclick = onDeclineRequest;
-                    document.getElementById('achSendEmail').onclick = function() {
+                    document.getElementById('achSendEmail').onclick = function () {
                         onSendEmail();
                     };
                     document.getElementById('achSkipRequest').onclick = onSkipRequest;
@@ -482,7 +484,7 @@
                     // init checkboxes state
                     var chk = document.getElementById('achAutoLock');
                     chk.checked = curOptions[chk.id];
-                    chk.onclick = function() {
+                    chk.onclick = function () {
                         curOptions[this.id] = this.checked;
                         localStorage.setItem(this.id, this.checked.toString());
                         document.getElementById('achLockRequest').style.display = this.checked ? 'none' : 'block';
@@ -491,7 +493,7 @@
 
                     chk = document.getElementById('achAutoSendEmail');
                     chk.checked = curOptions[chk.id];
-                    chk.onclick = function() {
+                    chk.onclick = function () {
                         curOptions[this.id] = this.checked;
                         localStorage.setItem(this.id, this.checked.toString());
                         document.getElementById('achSendEmail').style.display = this.checked ? 'none' : 'block';
@@ -500,14 +502,14 @@
 
                     chk = document.getElementById('achAutoGoNextRequest');
                     chk.checked = curOptions[chk.id];
-                    chk.onclick = function() {
+                    chk.onclick = function () {
                         curOptions[this.id] = this.checked;
                         localStorage.setItem(this.id, this.checked.toString());
                     };
 
                     chk = document.getElementById('achAutoSaveCity');
                     chk.checked = curOptions[chk.id];
-                    chk.onclick = function() {
+                    chk.onclick = function () {
                         curOptions[this.id] = this.checked;
                         localStorage.setItem(this.id, this.checked.toString());
                     };
@@ -517,17 +519,17 @@
                 }
             }
 
-            if (document.getElementById(panelID) !== null) {
+            if (document.querySelector('wz-tab.' + panelID)) {
                 // Change config related options
                 // All countries
-                document.getElementById('achApplySuggestedCity').onclick = function() {
+                document.getElementById('achApplySuggestedCity').onclick = function () {
                     var cityName = document.getElementById('achSuggestedName').value;
                     if (cityName !== '' && cityName !== 'N/A') {
                         changeCity(cityName, true, cfg.code);
                     }
                     return false;
                 };
-                document.getElementById('achGotoTableCell').onclick = function() {
+                document.getElementById('achGotoTableCell').onclick = function () {
                     var loc = cfg.requestsTable;
                     if (curRequest.requestedcity) {
                         loc = loc + '&range=' + curRequest.row + ':' + curRequest.row;
@@ -538,7 +540,7 @@
                 // Ukraine related
                 document.getElementById('achApplySuggestedCity').disabled = true;
                 document.getElementById('achApplyFoundCity').disabled = true;
-                document.getElementById('achApplyFoundCity').onclick = function() {
+                document.getElementById('achApplyFoundCity').onclick = function () {
                     var cityName = document.getElementById('achFoundCity').value;
                     if (cityName !== '' && cityName !== 'N/A') {
                         changeCity(cityName, false, cfg.code);
@@ -576,8 +578,6 @@
                 document.getElementById('achRequestedCity').value = curRequest.requestedcity;
                 document.getElementById('achJumpToRequest').disabled = false;
                 document.getElementById('achApplyRequestedCity').disabled = false;
-
-                document.getElementById("achTab").click();
             }
             else {
                 document.getElementById('achAuthor').innerHTML = "N/A";
@@ -601,8 +601,7 @@
 
                 inputStatus.innerHTML = curRequest.status ? curRequest.status : 'N/A';
 
-                switch (curRequest.status)
-                {
+                switch (curRequest.status) {
                     case 'active':
                         btn1.disabled = false;
                         btn2.disabled = false;
@@ -671,10 +670,10 @@
 
                     if (text.result) {
                         if (text.result == 'found') {
-                            msg = "ACH: НП найден в таблице '" + text.sheet + "'. Строка " + text.line;
+                            msg = "ACH: НП знайдено в таблиці '" + text.sheet + "'. Стрічка " + text.line;
                         }
                         else if (text.result == 'add') {
-                            msg = "ACH: НП успешно добавлен в таблицу.";
+                            msg = "ACH: НП успішно додано до таблиці.";
                         }
                     }
                     alert(msg);
@@ -692,7 +691,7 @@
                     sendHTTPRequest(url, 'achSaveLevel5', 'fa fa-save', requestCallback);
                 }
                 else {
-                    alert('ACH: Не могу отправить запрос сохранения - некоторые нужные поля пустые!');
+                    alert('ACH: Неможливо відправити запит на збереження - деякі потрібні поля незаповнені!');
                 }
             }
         }
@@ -724,7 +723,7 @@
                 if (validateHTTPResponse(res)) {
                     var text = JSON.parse(res.responseText);
                     if (!text.version || parseInt(text.version) < minAnalyzerVersion) {
-                        alert("ACH: Ваша версия анализатора для МинРегиона устарела. Пожалуйста, скачайте новую!");
+                        alert("ACH: Ваша версія аналізатора для МінРегиону застаріла. Будь ласка, завантажте нову!");
                         updateMinRegionInfo(emptyResponse);
                     }
                     updateMinRegionInfo(text);
@@ -780,7 +779,7 @@
                 var segInfo = getSegmentInfo();
 
                 if (!(segInfo.streetID && segInfo.cityName)) {
-                    alert("ACH Ошибка: сегмент без названия. Возможно Вы забыли присвоить сегменту НП?");
+                    alert("ACH Помилка: сегмент без назви. Можливо Ви забули присвоїти сегменту НП?");
                     return;
                 }
                 if (W.model.actionManager.unsavedActionsNum() > 0) {
@@ -789,15 +788,15 @@
                         $('.waze-icon-save').click();
                     }
                     else {
-                        alert("ACH: Похоже, что Вы забыли сохранить изменения в редакторе.\nСохраните перед одобрением запроса ;)");
+                        alert("ACH: Схоже, що Ви забули зберегти зміни у редакторі.\nЗбережіть перед підтвердженням запиту ;)");
                         return;
                     }
                 }
                 curRequest.addedcity = segInfo.cityName;
                 if (askForComment) {
-                    curRequest.note = prompt('Обработанный НП: ' + curRequest.addedcity +
-                                             (segInfo.stateID != 1 ? '\nРегион (штат): ' + segInfo.stateName : '') +
-                                             '\nОдобрить запрос? Добавьте комментарий, если необходимо.', '');
+                    curRequest.note = prompt('Оброблений НП: ' + curRequest.addedcity +
+                        (segInfo.stateID != 1 ? '\nРегіон (штат): ' + segInfo.stateName : '') +
+                        '\nПідтвердити запит? Додайте коментар, якщо необхідно.', '');
                 }
                 else {
                     curRequest.note = '';
@@ -833,7 +832,7 @@
                 var segInfo = getSegmentInfo();
 
                 curRequest.addedcity = segInfo.cityName;
-                curRequest.note = prompt('Причина отказа?', document.getElementById('achMRResponseStatus').innerHTML.match(/City eliminated/i) ? 'НП Ліквідовано' : 'Такой НП уже существует.');
+                curRequest.note = prompt('Причина відмови?', document.getElementById('achMRResponseStatus').innerHTML.match(/City eliminated/i) ? 'НП Ліквідовано' : 'Цей НП вже існує.');
 
                 if (curRequest.note !== null) {
                     var url = cfg.apiUrl + '?func=processRequest&row=' + curRequest.row + '&user=' + user + '&addedcity=' + curRequest.addedcity + '&action=decline&stateid=' + segInfo.stateID + '&note=' + curRequest.note;
@@ -848,7 +847,7 @@
                     var text = JSON.parse(res.responseText);
                     if (text.result == 'success') {
                         setRequestStatus(curRequest.status + ", emailed");
-                        //alert("ACH: Письмо успешно отправлено!");
+                        //alert("ACH: Лист успішно відправлено!");
 
                         if (curOptions['achAutoGoNextRequest']) {
                             getCityRequest(null, 'achSkipRequest', 'fa fa-forward');
@@ -886,18 +885,18 @@
                 url: url,
                 method: 'GET',
                 timeout: requestsTimeout,
-                onload: function(res) {
+                onload: function (res) {
                     setButtonClass(buttonID, btnClass);
                     callback(res);
                 },
-                onreadystatechange: function(res) {
+                onreadystatechange: function (res) {
                     setButtonClass(buttonID, 'fa fa-spinner fa-pulse');
                 },
-                ontimeout: function(res) {
+                ontimeout: function (res) {
                     setButtonClass(buttonID, btnClass);
                     alert("ACH: Sorry, request timeout!");
                 },
-                onerror: function(res) {
+                onerror: function (res) {
                     setButtonClass(buttonID, btnClass);
                     alert("ACH: Sorry, request error!");
                 }
@@ -1002,13 +1001,8 @@
         function jumpToLink(permalink) {
             var lnk = parseLink(permalink);
 
-            function mergestart() {
-                W.model.events.unregister("mergestart", null, mergestart);
-                W.model.events.register("mergeend", null, mergeend);
-            }
             function mergeend() {
                 W.model.events.unregister("mergeend", null, mergeend);
-
                 if (lnk.segments) {
                     // autoselect any visible segment for bot generated links
                     if (lnk.segments == "-101") {
@@ -1023,7 +1017,6 @@
 
                             var seg = W.model.segments.get(s);
                             if (mapExtent.intersectsBounds(seg.geometry.getBounds())) {
-                                //debugger;
                                 lnk.segments = s;
                                 // one is enough for now
                                 break;
@@ -1050,16 +1043,15 @@
                 return;
             }
 
-            W.model.events.register("mergestart", null, mergestart);
+            W.model.events.register("mergeend", null, mergeend);
 
             W.selectionManager.unselectAll();
             var xy = OpenLayers.Layer.SphericalMercator.forwardMercator(parseFloat(lnk.lon), parseFloat(lnk.lat));
-            W.map.setCenter(xy, (lnk.zoom && lnk.zoom > 3 ? parseInt(lnk.zoom) : minZoomLevel));
+            W.map.setCenter(xy, (lnk.zoomLevel && lnk.zoomLevel > minZoomLevel ? parseInt(lnk.zoomLevel) : minZoomLevel));
         }
 
         function parseLink(permalink) {
             var link = {};
-
             var parts = permalink.split('?');
             var attrs = parts[1].split('&');
             for (var i = 0; attrs[i]; i++) {
@@ -1071,8 +1063,8 @@
                     case "lon":
                         link.lon = attrName[1];
                         break;
-                    case "zoom":
-                        link.zoom = attrName[1];
+                    case "zoomLevel":
+                        link.zoomLevel = attrName[1];
                         break;
                     case "segments":
                         link.segments = attrName[1];
@@ -1130,7 +1122,7 @@
                     var centroid = selectedItem.geometry.getCentroid(true); // without "true" it will return start point as a centroid
                     var lnk = OpenLayers.Layer.SphericalMercator.inverseMercator(centroid.x, centroid.y);
                     // 9
-                    segInfo.permalink = location.origin + location.pathname + "?env=row&lon=" + lnk.lon + "&lat=" + lnk.lat + "&zoom=4&segments=" + attr.id;
+                    segInfo.permalink = location.origin + location.pathname + "?env=row&lon=" + lnk.lon + "&lat=" + lnk.lat + "&zoomLevel=" + minZoomLevel + "&segments=" + attr.id;
                 }
             }
 
@@ -1148,7 +1140,7 @@
                         processGetResult(text);
                     }
                     else if (text.result == 'nothing to process') {
-                        alert("ACH: Нет доступных запросов для обработки.");
+                        alert("ACH: Відсутні доступні для обробки запити.");
                         // set request to empty
                         processGetResult();
                     }
@@ -1197,7 +1189,7 @@
             }
 
             $('#achCountContainer').css('background-color', bgColor);
-            $('#achCount').css('color', textColor).html(count > 0 ? 'Запросы НП: ' + count : count);
+            $('#achCount').css('color', textColor).html(count > 0 ? 'Запити НП: ' + count : count);
             $('#achSpinner').css('color', textColor);
         }
 
@@ -1221,30 +1213,17 @@
         function displayHtmlPage(res) {
             if (res.responseText.match(/Authorization needed/) || res.responseText.match(/ServiceLogin/)) {
                 alert("WME Add City Helper:\n" +
-                      "Для работы с таблицей запросов необходима авторизация. Это разовое действие.\n" +
-                      "Сейчас Вы будете перенаправлены на внешнюю страницу, где сможете подтвердить права доступа.\n" +
-                      "После подтверждения закройте страницу и перезагрузите редактор, чтобы изменения вступили в силу.");
+                    "Для роботи з таблицею запитів необхідна авторизація. Це одноразова дія.\n" +
+                    "Зараз Ви будете переправлені на зовнішню сторінку, де зможете підтвердити права доступу.\n" +
+                    "Після підтвердження закрийте сторінку та перезавантажте редактор, щоб зміни почали діяти.");
             }
             var w = window.open();
             w.document.open();
             w.document.write(res.responseText);
             w.document.close();
             //if (res.responseText.match(/ServiceLogin/)) {
-                w.location = res.finalUrl;
+            w.location = res.finalUrl;
             //}
-        }
-
-        function getElementsByClassName(classname, node) {
-            if (!node) {
-                node = document.getElementsByTagName("body")[0];
-            }
-            var a = [];
-            var re = new RegExp('\\b' + classname + '\\b');
-            var els = node.getElementsByTagName("*");
-            for (var i = 0, j = els.length; i < j; i++) {
-                if (re.test(els[i].className)) a.push(els[i]);
-            }
-            return a;
         }
 
         // thanks, guys, for the functions :)
@@ -1271,7 +1250,7 @@
             var cityChanged = false;
             var city = $(getEditFormControlName('cityname'));
             if (city.val() == cityName) {
-                alert('ACH: Сегмент уже имеет такое имя НП. Отмена.');
+                alert('ACH: Сегмент вже має таку ж назву НП. Відміна.');
             }
             else {
                 var chkCity = $(getEditFormControlName('citynamecheck'));
@@ -1283,7 +1262,7 @@
 
                 if (city.val().length === 0 ||
                     (city.val().length !== 0 &&
-                     confirm('ACH: Другое имя НП уже присвоено данному сегменту (' + city.val() + '). \nВы уверены, что хотите изменить его?'))) {
+                        confirm('ACH: Іншу назву НП вже присвоєно цьому сегменту (' + city.val() + '). \nВи впевнені, що хочете змінити її?'))) {
 
                     city.val(cityName).change();
                     cityChanged = true;
@@ -1297,9 +1276,8 @@
                     }
 
                     var state = $(getEditFormControlName('state'));
-                    if (state && curRequest.statecode && state.val() && (state.val() != curRequest.statecode))
-                    {
-                        state.children().each(function() {
+                    if (state && curRequest.statecode && state.val() && (state.val() != curRequest.statecode)) {
+                        state.children().each(function () {
                             if (this.value == curRequest.statecode) {
                                 state.val(curRequest.statecode).change();
                             }
@@ -1309,8 +1287,7 @@
                     if (!forcedCountryCode) {
                         forcedCountryCode = curRequest.countrycode;
                     }
-                    if (forcedCountryCode && country.val() != forcedCountryCode)
-                    {
+                    if (forcedCountryCode && country.val() != forcedCountryCode) {
                         country.val(forcedCountryCode).change();
                     }
                 }
@@ -1327,19 +1304,46 @@
             }
         }
 
+        var iCallback = function(entries, observer) {
+            if (entries[0]['intersectionRatio'] == 0) {
+                // element is hidden
+                //debugger;
+                if (target.id != 'edit-panel') {
+                    observer.unobserve(entries[0].target);
+                }
+            }
+            else {
+                // element is visible
+                // entries[0]['intersectionRatio'] can be used to check whether element is visible fully or partially
+                //debugger;
+                var target = entries[0].target;
+                if (target.id == 'edit-panel') {
+                    var elm = target.querySelector('wz-tabs').shadowRoot.querySelector('.wz-tabs .tabs-labels-wrapper .indicator');
+                    observer.unobserve(target);
+                    observer.observe(elm);
+                } else {
+                    activateTab();
+                }
+            }
+        };
+
         // add listener for tab changes
-        var panelObserver = new MutationObserver(function(mutations) {
-            mutations.forEach(function(mutation) {
+        var panelObserver = new MutationObserver(function (mutations) {
+            mutations.forEach(function (mutation) {
                 for (var i = 0; i < mutation.addedNodes.length; i++) {
                     var addedNode = mutation.addedNodes[i];
-
-                    if (addedNode.nodeType === Node.ELEMENT_NODE && addedNode.querySelector('div.selection')) {
+                    if (addedNode.nodeType === Node.ELEMENT_NODE && addedNode.querySelector('wz-tabs')) {
                         drawTab();
                     }
                 }
             });
         });
-        panelObserver.observe(document.getElementById('edit-panel'), { childList: true, subtree: true });
+
+        var ePanel = document.getElementById('edit-panel');
+        panelObserver.observe(ePanel, { childList: true, subtree: true });
+
+        var iObserver = new IntersectionObserver(iCallback, { root: document.documentElement });
+        iObserver.observe(ePanel);
 
         W.map.events.register("moveend", null, drawTab);
 
