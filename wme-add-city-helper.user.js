@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WME Add City Helper
 // @namespace    waze-ua
-// @version      2022.08.02.001
+// @version      2022.08.03.001
 // @description  Helps to add cities using WME Requests spreadsheet
 // @author       madnut
 // @include      https://*waze.com/*editor*
@@ -981,6 +981,8 @@
                 curRequest.countrycode = rq.countrycode;
                 curRequest.statecode = rq.statecode;
 
+                iObserver.observe(document.getElementById('edit-panel'));
+
                 jumpToLink(rq.permalink);
 
                 if (curOptions['achAutoLock']) {
@@ -1308,42 +1310,46 @@
             if (entries[0]['intersectionRatio'] == 0) {
                 // element is hidden
                 //debugger;
+                let target = entries[0].target;
                 if (target.id != 'edit-panel') {
-                    observer.unobserve(entries[0].target);
+                    observer.unobserve(target);
                 }
             }
             else {
                 // element is visible
                 // entries[0]['intersectionRatio'] can be used to check whether element is visible fully or partially
                 //debugger;
-                var target = entries[0].target;
+                let target = entries[0].target;
                 if (target.id == 'edit-panel') {
-                    var elm = target.querySelector('wz-tabs').shadowRoot.querySelector('.wz-tabs .tabs-labels-wrapper .indicator');
                     observer.unobserve(target);
-                    observer.observe(elm);
+                    let tabs = target.querySelector('wz-tabs');
+                    if (tabs) {
+                        let elm = tabs.shadowRoot.querySelector('.wz-tabs .tabs-labels-wrapper .indicator');
+                        observer.observe(elm);
+                    }
                 } else {
                     activateTab();
                 }
             }
         };
 
+        var ePanel = document.getElementById('edit-panel');
+
+        var iObserver = new IntersectionObserver(iCallback, { root: document.documentElement });
+        iObserver.observe(ePanel);
+
         // add listener for tab changes
         var panelObserver = new MutationObserver(function (mutations) {
             mutations.forEach(function (mutation) {
-                for (var i = 0; i < mutation.addedNodes.length; i++) {
-                    var addedNode = mutation.addedNodes[i];
+                for (let i = 0; i < mutation.addedNodes.length; i++) {
+                    let addedNode = mutation.addedNodes[i];
                     if (addedNode.nodeType === Node.ELEMENT_NODE && addedNode.querySelector('wz-tabs')) {
                         drawTab();
                     }
                 }
             });
         });
-
-        var ePanel = document.getElementById('edit-panel');
         panelObserver.observe(ePanel, { childList: true, subtree: true });
-
-        var iObserver = new IntersectionObserver(iCallback, { root: document.documentElement });
-        iObserver.observe(ePanel);
 
         W.map.events.register("moveend", null, drawTab);
 
