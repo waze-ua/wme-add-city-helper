@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WME Add City Helper
 // @namespace    waze-ua
-// @version      2022.08.03.001
+// @version      2022.08.03.002
 // @description  Helps to add cities using WME Requests spreadsheet
 // @author       madnut
 // @include      https://*waze.com/*editor*
@@ -1336,7 +1336,7 @@
         var ePanel = document.getElementById('edit-panel');
 
         var iObserver = new IntersectionObserver(iCallback, { root: document.documentElement });
-        iObserver.observe(ePanel);
+        //iObserver.observe(ePanel);
 
         // add listener for tab changes
         var panelObserver = new MutationObserver(function (mutations) {
